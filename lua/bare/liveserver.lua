@@ -1,7 +1,8 @@
+-- Prerequisites: python3 & lsof
 local M = {}
-local state = { job_id = nil, port = 8080, dir = nil }
+local state = { job_id = nil, port = 8080 }
 
--- Get URL
+-- Get URL for current port
 local function url() return "http://localhost:" .. state.port .. "/" end
 
 -- Check if server is running
@@ -20,18 +21,28 @@ local function open_browser(u)
   if cmd then vim.fn.jobstart({ cmd, u }, { detach = true }) end
 end
 
--- Start server (stops previous if any)
-function M.start(port)
+-- Stop the server
+function M.stop()
   if running() then
     vim.fn.jobstop(state.job_id)
     state.job_id = nil
+    vim.notify("[LiveServer] Stopped server")
   end
-  state.port = port or state.port
-  state.dir = vim.fn.getcwd()
+end
 
+-- Start server in current cwd (stops previous if any)
+function M.start(port)
+  local cwd = vim.fn.getcwd()
+
+  -- Stop previous server
+  M.stop()
+
+  state.port = port or state.port
+
+  -- Start new server in current cwd
   state.job_id = vim.fn.jobstart(
     { "python3", "-m", "http.server", tostring(state.port) },
-    { cwd = state.dir, detach = true }
+    { cwd = cwd, detach = true }
   )
 
   if state.job_id <= 0 then
@@ -40,11 +51,11 @@ function M.start(port)
     return
   end
 
-  vim.notify("[LiveServer] Started at " .. url())
+  vim.notify("[LiveServer] Started at " .. url() .. " (cwd: " .. cwd .. ")")
   vim.defer_fn(function() open_browser(url()) end, 300)
 end
 
--- Setup user command
+-- Setup user command and VimLeave autocmd
 function M.setup(opts)
   opts = opts or {}
   state.port = opts.default_port or 8080
@@ -52,6 +63,11 @@ function M.setup(opts)
   vim.api.nvim_create_user_command("LiveServerStart", function(cmd)
     M.start(tonumber(cmd.args) or state.port)
   end, { nargs = "?", desc = "Start live server (stops previous, opens in browser)" })
+
+  -- Stop server automatically when leaving Neovim
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    callback = function() M.stop() end,
+  })
 end
 
 return M
