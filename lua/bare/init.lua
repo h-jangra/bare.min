@@ -1,4 +1,4 @@
-local modules = { "status", "buffer"}
+local modules = { "status", "buffer", "icons", "snippets", "liveserver" }
 
 for _, mod in ipairs(modules) do
   local ok, plugin = pcall(require, "bare." .. mod)
