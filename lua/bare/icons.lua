@@ -1,16 +1,15 @@
-
 local M = {}
 
 M.icons = {
   lua = "",
-  javascript = "",
-  typescript = "",
-  python = "",
+  js = "",
+  ts = "",
+  py = "",
   java = "",
   c = "",
   cpp = "",
   go = "",
-  rust = "",
+  rs = "",
   html = "",
   css = "",
   sh = "",
@@ -18,24 +17,25 @@ M.icons = {
   toml = "",
   xml = "",
   yaml = "",
-  markdown = "",
+  md = "",
   vim = "",
-  typst = "",
+  typ = "",
   dockerfile = "",
   sql = "",
 
+  png = "󰸭",
+  jpg = "󰈥",
   zsh = "",
   fish = "",
   bash = "",
   gitignore = "",
   txt = "",
-  csv = "",
+  csv = "𝄜",
   lock = "",
   pdf = "",
-  default = "",
+  default = "🗎",
 }
 
--- helper function
 function M.get(ft)
   return M.icons[ft] or M.icons.default
 end

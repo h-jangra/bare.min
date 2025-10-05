@@ -6,6 +6,7 @@ local state = {
   buf = nil,
   win = nil,
   cwd = nil,
+  show_hidden = false,
 }
 
 local has_icons, icons = pcall(require, "bare.icons")
@@ -25,7 +26,12 @@ local function get_icon(name, is_dir)
     end
   end
 
-  return "󰈚 "
+  return "📄 "
+end
+
+-- Check if a file is hidden
+local function is_hidden(name)
+  return name:sub(1, 1) == "."
 end
 
 -- Read directory contents
@@ -41,14 +47,17 @@ local function read_dir(path)
     local name, type = vim.loop.fs_scandir_next(handle)
     if not name then break end
 
-    local full_path = path .. "/" .. name
-    local is_dir = type == "directory"
+    -- Skip hidden files if show_hidden is false
+    if state.show_hidden or not is_hidden(name) then
+      local full_path = path .. "/" .. name
+      local is_dir = type == "directory"
 
-    table.insert(items, {
-      name = name,
-      path = full_path,
-      is_dir = is_dir,
-    })
+      table.insert(items, {
+        name = name,
+        path = full_path,
+        is_dir = is_dir,
+      })
+    end
   end
 
   -- Sort: dir first, then alphabetically
@@ -71,8 +80,12 @@ local function render()
   local items = read_dir(state.cwd)
   local lines = {}
 
-  -- Header
-  table.insert(lines, state.cwd .. "/")
+  -- Header with hidden files indicator
+  local header = state.cwd .. "/"
+  if not state.show_hidden then
+    header = header .. " (󰘓:)"
+  end
+  table.insert(lines, header)
 
   -- Optional parent directory line
   if state.cwd ~= "/" then
@@ -90,6 +103,13 @@ local function render()
   vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
   vim.api.nvim_buf_set_option(state.buf, "modifiable", false)
 end
+
+-- Toggle hidden files
+local function toggle_hidden()
+  state.show_hidden = not state.show_hidden
+  render()
+end
+
 -- Get item at cursor
 local function get_current_item()
   local line = vim.api.nvim_get_current_line()
@@ -249,6 +269,9 @@ local function setup_keymaps()
   vim.keymap.set("n", "d", create_dir, opts)  -- d creates directory
   vim.keymap.set("n", "D", delete_item, opts) -- D deletes
   vim.keymap.set("n", "R", rename_item, opts) -- R renames
+
+  -- Toggle hidden files
+  vim.keymap.set("n", "H", toggle_hidden, opts) -- H toggles hidden files
 
   -- Close
   vim.keymap.set("n", "q", M.close, opts)
