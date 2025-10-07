@@ -1,5 +1,6 @@
 require("bare.buffer")
 require("bare.status")
--- require("bare.netrw")
 require("bare.liveserver").setup({ default_port = 8080 })
+-- require("bare.netrw")
 require("bare.file").setup()
+require("bare.filetree").setup()
