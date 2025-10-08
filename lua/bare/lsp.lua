@@ -1,100 +1,164 @@
-local M = {}
+local function on_attach(client, bufnr)
+  local opts = { buffer = bufnr, noremap = true, silent = true }
 
-M.servers = {
-  lua = {
-    name = "lua_ls",
+  -- Navigation
+  vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
+  vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
+  vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, opts)
+  vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
+  vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
+  vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, opts)
+
+  -- Code actions
+  vim.keymap.set('n', '<leader>rn', vim.lsp.buf.rename, opts)
+  vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
+
+  -- Diagnostics
+  vim.keymap.set('n', '<leader>d', vim.diagnostic.open_float, opts)
+
+  print("LSP attached: " .. client.name)
+end
+
+-- Configure diagnostics display
+vim.diagnostic.config({
+  virtual_text = true,
+  signs = true,
+  underline = true,
+  update_in_insert = false,
+  severity_sort = true,
+})
+
+-- LSP server configurations
+local servers = {
+  -- Lua
+  lua_ls = {
     cmd = { "lua-language-server" },
     filetypes = { "lua" },
-    root_dir = vim.fs.root(0, {
-      ".luarc.json", ".luarc.jsonc", ".luacheckrc", ".stylua.toml",
-      "stylua.toml", "selene.toml", "selene.yml", ".git"
-    }),
+    root_dir = vim.fs.dirname(vim.fs.find({ ".luarc.json", ".luarc.jsonc", ".git" }, { upward = true })[1]),
     settings = {
       Lua = {
         runtime = { version = "LuaJIT" },
         diagnostics = { globals = { "vim" } },
-        workspace = { library = vim.api.nvim_get_runtime_file("", true), checkThirdParty = false },
+        workspace = {
+          library = vim.api.nvim_get_runtime_file("", true),
+          checkThirdParty = false,
+        },
         telemetry = { enable = false },
       },
     },
   },
 
-  python = {
-    name = "pyright",
+  -- Python
+  pyright = {
     cmd = { "pyright-langserver", "--stdio" },
     filetypes = { "python" },
-    root_dir = vim.fs.root(0, { "pyproject.toml", "setup.py", ".git" }),
+    root_dir = vim.fs.dirname(vim.fs.find({ "setup.py", "pyproject.toml", ".git" }, { upward = true })[1]),
+    settings = {
+      python = {
+        analysis = {
+          autoSearchPaths = true,
+          useLibraryCodeForTypes = true,
+          diagnosticMode = "workspace",
+        },
+      },
+    },
   },
 
-  javascript = {
-    name = "ts_ls",
+  -- TypeScript/JavaScript
+  ts_ls = {
     cmd = { "typescript-language-server", "--stdio" },
     filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
-    root_dir = vim.fs.root(0, { "package.json", "tsconfig.json", ".git" }),
+    root_dir = vim.fs.dirname(vim.fs.find({ "package.json", "tsconfig.json", ".git" }, { upward = true })[1]),
   },
 
-  go = {
-    name = "gopls",
-    cmd = { "gopls" },
-    filetypes = { "go" },
-    root_dir = vim.fs.root(0, { "go.mod", ".git" }),
-  },
-
-  rust = {
-    name = "rust_analyzer",
+  -- Rust
+  rust_analyzer = {
     cmd = { "rust-analyzer" },
     filetypes = { "rust" },
-    root_dir = vim.fs.root(0, { "Cargo.toml", ".git" }),
+    root_dir = vim.fs.dirname(vim.fs.find({ "Cargo.toml", ".git" }, { upward = true })[1]),
+    settings = {
+      ["rust-analyzer"] = {
+        cargo = { allFeatures = true },
+        checkOnSave = { command = "clippy" },
+      },
+    },
   },
 
-  typst = {
-    name = "tinymist",
-    cmd = { "tinymist" },
+  -- Go
+  gopls = {
+    cmd = { "gopls" },
+    filetypes = { "go", "gomod", "gowork", "gotmpl" },
+    root_dir = vim.fs.dirname(vim.fs.find({ "go.mod", ".git" }, { upward = true })[1]),
+    settings = {
+      gopls = {
+        analyses = { unusedparams = true },
+        staticcheck = true,
+      },
+    },
+  },
+
+  -- C/C++
+  clangd = {
+    cmd = { "clangd" },
+    filetypes = { "c", "cpp", "objc", "objcpp" },
+    root_dir = vim.fs.dirname(vim.fs.find({ "compile_commands.json", ".git" }, { upward = true })[1]),
+  },
+
+  -- Typst
+  tinymist = {
+    cmd = { "tinymist", "lsp" },
     filetypes = { "typst" },
-  }
+    root_dir = vim.fs.dirname(vim.fs.find({ ".git" }, { upward = true })[1]),
+    settings = {
+      exportPdf = "onSave",
+      formatterMode = "typstyle",
+    },
+    init_options = {
+      formatterMode = "typstyle",
+    },
+  },
 }
 
+-- Autocommand to start LSP servers
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "*",
+  callback = function(args)
+    local bufnr = args.buf
+    local ft = vim.bo[bufnr].filetype
 
--- Check if a command exists in PATH
-local function executable(cmd)
-  return vim.fn.executable(cmd) == 1
-end
+    -- Find matching server for this filetype
+    for server_name, config in pairs(servers) do
+      if vim.tbl_contains(config.filetypes, ft) then
+        -- Check if this buffer already has this LSP client
+        local clients = vim.lsp.get_clients({ bufnr = bufnr, name = server_name })
+        if #clients > 0 then
+          return
+        end
 
--- Start LSP safely
-function M.start_lsp(config)
-  local cmd_name = config.cmd[1]
-  if not executable(cmd_name) then
-    vim.notify(
-      string.format("LSP '%s' not found! Run: %s", config.name, config.install_cmd or "install manually"),
-      vim.log.levels.WARN
-    )
-    if config.install_cmd then
-      vim.fn.system(config.install_cmd)
-      vim.notify(string.format("Tried installing '%s'. Restart Neovim if successful.", config.name))
+        -- Determine root directory
+        local root_dir = config.root_dir or vim.fn.getcwd()
+        if not root_dir then
+          return
+        end
+
+        -- Start the LSP client
+        vim.lsp.start({
+          name = server_name,
+          cmd = config.cmd,
+          root_dir = root_dir,
+          settings = config.settings or {},
+          init_options = config.init_options or {},
+          on_attach = on_attach,
+          capabilities = vim.lsp.protocol.make_client_capabilities(),
+        })
+      end
     end
-    return
-  end
-  vim.lsp.start(config)
+  end,
+})
+
+-- Diagnostic signs
+local signs = { Error = "✘", Warn = "▲", Hint = "⚑", Info = "»" }
+for type, icon in pairs(signs) do
+  local hl = "DiagnosticSign" .. type
+  vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = hl })
 end
-
--- Setup autocmd for all servers
-function M.setup(user_servers)
-  -- Merge default servers with user-provided servers
-  if user_servers then
-    for k, v in pairs(user_servers) do
-      M.servers[k] = v
-    end
-  end
-
-  -- Create autocmds
-  for ft, config in pairs(M.servers) do
-    vim.api.nvim_create_autocmd("FileType", {
-      pattern = ft,
-      callback = function()
-        M.start_lsp(config)
-      end,
-    })
-  end
-end
-
-return M
