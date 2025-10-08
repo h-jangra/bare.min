@@ -7,80 +7,54 @@ local state = {
   win = nil,
   root = nil,
   show_hidden = false,
-  expanded = {}, -- Track expanded directories
+  expanded = {},
+  line_to_path = {},
+  last_cursor = nil,
+  clipboard = nil,
 }
 
 local has_icons, icons = pcall(require, "bare.icons")
 
+-- Utilities
 local function get_icon(name, is_dir, is_expanded)
-  if is_dir then
-    if is_expanded then
-      return "📂 "
-    else
-      return "📁 "
-    end
-  end
-
+  if is_dir then return is_expanded and "📂 " or "📁 " end
   if has_icons then
     local ext = name:match("^.+%.(.+)$")
     if ext then
       local icon = icons.get(ext)
-      if icon then
-        return icon .. " "
-      end
+      if icon then return icon .. " " end
     end
   end
-
-  return " "
+  return "📄 "
 end
 
--- Check if a file is hidden
 local function is_hidden(name)
   return name:sub(1, 1) == "."
 end
 
--- Read directory contents
 local function read_dir(path)
-  local items = {}
-  local handle = vim.loop.fs_scandir(path)
-
-  if not handle then
-    return items
-  end
+  local items, handle = {}, vim.loop.fs_scandir(path)
+  if not handle then return items end
 
   while true do
     local name, type = vim.loop.fs_scandir_next(handle)
     if not name then break end
-
     if state.show_hidden or not is_hidden(name) then
-      local full_path = path .. "/" .. name
-      local is_dir = type == "directory"
-
-      table.insert(items, {
-        name = name,
-        path = full_path,
-        is_dir = is_dir,
-      })
+      table.insert(items, { name = name, path = path .. "/" .. name, is_dir = type == "directory" })
     end
   end
 
-  -- Sort: directories first, then alphabetically
   table.sort(items, function(a, b)
-    if a.is_dir ~= b.is_dir then
-      return a.is_dir
-    end
+    if a.is_dir ~= b.is_dir then return a.is_dir end
     return a.name:lower() < b.name:lower()
   end)
-
   return items
 end
 
--- Build tree recursively
 local function build_tree(path, depth, lines, line_to_path)
   depth = depth or 0
   lines = lines or {}
   line_to_path = line_to_path or {}
-
   local items = read_dir(path)
   local indent = string.rep("  ", depth)
 
@@ -88,380 +62,312 @@ local function build_tree(path, depth, lines, line_to_path)
     local is_expanded = state.expanded[item.path]
     local icon = get_icon(item.name, item.is_dir, is_expanded)
     local line = indent .. icon .. item.name
-
     table.insert(lines, line)
-    table.insert(line_to_path, {
-      path = item.path,
-      is_dir = item.is_dir,
-      name = item.name,
-      depth = depth,
-    })
-
-    -- Recursively add children if directory is expanded
+    table.insert(line_to_path, { path = item.path, is_dir = item.is_dir })
     if item.is_dir and is_expanded then
       build_tree(item.path, depth + 1, lines, line_to_path)
     end
   end
-
   return lines, line_to_path
 end
 
--- Render the tree
+local PADDING = "  "
+
 local function render()
-  if not vim.api.nvim_buf_is_valid(state.buf) then
-    return
-  end
+  if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then return end
 
   local lines, line_to_path = build_tree(state.root, 0)
+  local header = state.root .. "/"
+  if not state.show_hidden then header = header .. " (󱞞)" end
+  table.insert(lines, 1, PADDING .. header)
+  for i = 2, #lines do lines[i] = PADDING .. lines[i] end
 
-  -- Store mapping for later use
   state.line_to_path = line_to_path
 
-  -- Add header
-  local header = state.root .. "/"
-  if not state.show_hidden then
-    header = header .. " (󱞞)"
-  end
-  table.insert(lines, 1, header)
-
-  vim.api.nvim_buf_set_option(state.buf, "modifiable", true)
+  vim.bo[state.buf].modifiable = true
   vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
-  vim.api.nvim_buf_set_option(state.buf, "modifiable", false)
+  vim.bo[state.buf].modifiable = false
 
-  -- Restore cursor position if possible
-  if state.last_cursor then
-    pcall(vim.api.nvim_win_set_cursor, state.win, state.last_cursor)
+  if state.win and vim.api.nvim_win_is_valid(state.win) then
+    if state.last_cursor then
+      pcall(vim.api.nvim_win_set_cursor, state.win, state.last_cursor)
+    else
+      pcall(vim.api.nvim_win_set_cursor, state.win, {2, 0})
+    end
   end
 end
 
--- Toggle hidden files
+local function get_current_item()
+  if not state.win or not vim.api.nvim_win_is_valid(state.win) then return nil end
+  local row = vim.api.nvim_win_get_cursor(state.win)[1]
+  if row <= 1 then return nil end
+  return state.line_to_path[row - 1]
+end
+
+local function toggle_or_open()
+  local item = get_current_item()
+  if not item then return end
+
+  if item.is_dir then
+    state.expanded[item.path] = not state.expanded[item.path]
+    state.last_cursor = vim.api.nvim_win_get_cursor(state.win)
+    render()
+  else
+    -- Open file in another window if possible
+    local prev_win = nil
+    for _, w in ipairs(vim.api.nvim_list_wins()) do
+      if w ~= state.win and vim.api.nvim_win_get_config(w).relative == "" then
+        prev_win = w
+        break
+      end
+    end
+
+    if prev_win then
+      vim.api.nvim_set_current_win(prev_win)
+      vim.cmd("edit " .. fn.fnameescape(item.path))
+    else
+      vim.cmd("wincmd l")
+      if vim.api.nvim_get_current_win() == state.win then
+        vim.cmd("vsplit")
+      end
+      vim.cmd("edit " .. fn.fnameescape(item.path))
+    end
+  end
+end
+
+local function collapse()
+  local item = get_current_item()
+  if not item then return end
+  
+  if item.is_dir and state.expanded[item.path] then
+    state.expanded[item.path] = false
+  else
+    local parent = fn.fnamemodify(item.path, ":h")
+    if parent ~= item.path and parent ~= state.root then
+      state.expanded[parent] = false
+      for i, v in ipairs(state.line_to_path) do
+        if v.path == parent then
+          if state.win and vim.api.nvim_win_is_valid(state.win) then
+            vim.api.nvim_win_set_cursor(state.win, {i + 1, 0})
+          end
+          break
+        end
+      end
+    end
+  end
+  
+  if state.win and vim.api.nvim_win_is_valid(state.win) then
+    state.last_cursor = vim.api.nvim_win_get_cursor(state.win)
+  end
+  render()
+end
+
 local function toggle_hidden()
   state.show_hidden = not state.show_hidden
   render()
 end
 
--- Get item at cursor
-local function get_current_item()
-  local row = vim.api.nvim_win_get_cursor(0)[1]
-
-  -- Skip header line
-  if row <= 1 then
-    return nil
-  end
-
-  -- Adjust for header offset
-  local item_index = row - 1
-
-  if state.line_to_path and state.line_to_path[item_index] then
-    return state.line_to_path[item_index]
-  end
-
-  return nil
+-- ======= Async input prompt =======
+local function prompt_input(prompt, callback)
+  vim.ui.input({ prompt = prompt .. ": " }, function(input)
+    if input and input ~= "" then
+      callback(input)
+    end
+  end)
 end
 
--- Toggle directory expansion or open file
-local function toggle_or_open()
-  local item = get_current_item()
-  if not item then
-    return
-  end
-
-  if item.is_dir then
-    -- Toggle expansion
-    state.expanded[item.path] = not state.expanded[item.path]
+local function refresh()
+  if state.win and vim.api.nvim_win_is_valid(state.win) then
     state.last_cursor = vim.api.nvim_win_get_cursor(state.win)
-    render()
-  else
-    -- Get the previous window
-    local prev_win = fn.win_getid(fn.winnr('#'))
-
-    -- If previous window is the explorer, find another window
-    if prev_win == state.win or not vim.api.nvim_win_is_valid(prev_win) then
-      local wins = vim.api.nvim_list_wins()
-      for _, win in ipairs(wins) do
-        if win ~= state.win then
-          prev_win = win
-          break
-        end
-      end
-    end
-
-    -- Open file in target window
-    if prev_win and vim.api.nvim_win_is_valid(prev_win) then
-      vim.api.nvim_set_current_win(prev_win)
-      vim.cmd("edit " .. fn.fnameescape(item.path))
-    else
-      -- Create new split if no other window exists
-      vim.cmd("wincmd l")
-      vim.cmd("edit " .. fn.fnameescape(item.path))
-    end
   end
-end
-
--- Collapse directory
-local function collapse()
-  local item = get_current_item()
-  if not item then
-    return
-  end
-
-  if item.is_dir and state.expanded[item.path] then
-    -- Collapse current directory
-    state.expanded[item.path] = false
-    state.last_cursor = vim.api.nvim_win_get_cursor(state.win)
-    render()
-  else
-    -- Jump to parent directory
-    local parent = fn.fnamemodify(item.path, ":h")
-    if parent ~= item.path then
-      -- Find parent in tree and jump to it
-      for i, line_item in ipairs(state.line_to_path) do
-        if line_item.path == parent then
-          vim.api.nvim_win_set_cursor(state.win, { i + 2, 0 })
-          break
-        end
-      end
-    end
-  end
-end
-
--- Expand all subdirectories of current directory
-local function expand_all()
-  local item = get_current_item()
-  if not item or not item.is_dir then
-    return
-  end
-
-  local function expand_recursive(path)
-    state.expanded[path] = true
-    local items = read_dir(path)
-    for _, subitem in ipairs(items) do
-      if subitem.is_dir then
-        expand_recursive(subitem.path)
-      end
-    end
-  end
-
-  expand_recursive(item.path)
-  state.last_cursor = vim.api.nvim_win_get_cursor(state.win)
   render()
 end
 
--- Collapse all directories
-local function collapse_all()
-  state.expanded = {}
-  render()
-end
-
--- Create new file
+-- ======= File operations =======
 local function create_file()
   local item = get_current_item()
-  local base_dir = state.root
+  local parent_dir = item and (item.is_dir and item.path or fn.fnamemodify(item.path, ":h")) or state.root
 
-  if item then
-    base_dir = item.is_dir and item.path or fn.fnamemodify(item.path, ":h")
-  end
+  prompt_input("New file name", function(name)
+    local path = parent_dir .. "/" .. name
+    local ok, err = io.open(path, "w")
+    if ok then ok:close() vim.notify("Created: " .. name)
+    else vim.notify("Error: " .. tostring(err), vim.log.levels.ERROR) end
 
-  local filename = fn.input("New file name: ", base_dir .. "/")
-  if filename == "" or filename == base_dir .. "/" then
-    return
-  end
-
-  -- Create parent directories if needed
-  local parent = fn.fnamemodify(filename, ":h")
-  fn.mkdir(parent, "p")
-
-  -- Open file in the other window
-  local prev_win = fn.win_getid(fn.winnr('#'))
-  if prev_win == state.win or not vim.api.nvim_win_is_valid(prev_win) then
-    vim.cmd("wincmd l")
-  else
-    vim.api.nvim_set_current_win(prev_win)
-  end
-
-  vim.cmd("edit " .. fn.fnameescape(filename))
-
-  -- Expand parent directory in tree
-  state.expanded[parent] = true
-  render()
+    state.expanded[parent_dir] = true
+    refresh()
+  end)
 end
 
--- Create new directory
 local function create_dir()
   local item = get_current_item()
-  local base_dir = state.root
+  local parent_dir = item and (item.is_dir and item.path or fn.fnamemodify(item.path, ":h")) or state.root
 
-  if item then
-    base_dir = item.is_dir and item.path or fn.fnamemodify(item.path, ":h")
-  end
+  prompt_input("New directory name", function(name)
+    local path = parent_dir .. "/" .. name
+    local ok = vim.fn.mkdir(path, "p")
+    if ok == 0 then vim.notify("Failed to create directory", vim.log.levels.ERROR)
+    else vim.notify("Created: " .. name) end
 
-  local dirname = fn.input("New directory name: ", base_dir .. "/")
-  if dirname == "" or dirname == base_dir .. "/" then
-    return
-  end
-
-  fn.mkdir(dirname, "p")
-
-  -- Expand parent directory
-  local parent = fn.fnamemodify(dirname, ":h")
-  state.expanded[parent] = true
-  render()
+    state.expanded[parent_dir] = true
+    refresh()
+  end)
 end
 
--- Delete file/directory
 local function delete_item()
   local item = get_current_item()
-  if not item then
-    return
-  end
+  if not item then return end
 
-  local confirm = fn.input("Delete '" .. item.name .. "'? (y/n): ")
-  if confirm:lower() ~= "y" then
-    return
-  end
-
-  if item.is_dir then
-    fn.delete(item.path, "rf")
-  else
-    fn.delete(item.path)
-  end
-
-  render()
+  local name = fn.fnamemodify(item.path, ":t")
+  prompt_input("Delete " .. name .. "? (y/N)", function(confirm)
+    if confirm:lower() ~= "y" then return end
+    local ok = vim.fn.delete(item.path, item.is_dir and "rf" or "")
+    if ok ~= 0 then vim.notify("Failed to delete", vim.log.levels.ERROR)
+    else vim.notify("Deleted: " .. name) end
+    refresh()
+  end)
 end
 
--- Rename file/directory
 local function rename_item()
   local item = get_current_item()
-  if not item then
-    return
-  end
+  if not item then return end
 
-  local new_name = fn.input("Rename to: ", item.name)
-  if new_name == "" or new_name == item.name then
-    return
-  end
-
-  local parent = fn.fnamemodify(item.path, ":h")
-  local new_path = parent .. "/" .. new_name
-  fn.rename(item.path, new_path)
-
-  -- Update expanded state if it was a directory
-  if item.is_dir and state.expanded[item.path] then
-    state.expanded[item.path] = nil
-    state.expanded[new_path] = true
-  end
-
-  render()
+  local old_name = fn.fnamemodify(item.path, ":t")
+  prompt_input("Rename '" .. old_name .. "' to", function(newname)
+    local newpath = fn.fnamemodify(item.path, ":h") .. "/" .. newname
+    local ok = os.rename(item.path, newpath)
+    if not ok then vim.notify("Rename failed", vim.log.levels.ERROR)
+    else vim.notify("Renamed: " .. old_name .. " → " .. newname) end
+    refresh()
+  end)
 end
 
--- Change root directory
-local function change_root()
+local function copy_item()
   local item = get_current_item()
-  if not item or not item.is_dir then
+  if not item then return end
+  state.clipboard = { path = item.path, move = false, is_dir = item.is_dir }
+  vim.notify("Copied: " .. fn.fnamemodify(item.path, ":t"))
+end
+
+local function move_item()
+  local item = get_current_item()
+  if not item then return end
+  state.clipboard = { path = item.path, move = true, is_dir = item.is_dir }
+  vim.notify("Cut: " .. fn.fnamemodify(item.path, ":t"))
+end
+
+local function paste_item()
+  if not state.clipboard then
+    vim.notify("Clipboard empty", vim.log.levels.WARN)
     return
   end
 
-  state.root = item.path
-  state.expanded = {}
-  render()
-end
+  local item = get_current_item()
+  local dest = item and (item.is_dir and item.path or fn.fnamemodify(item.path, ":h")) or state.root
 
--- Go to parent directory as root
-local function root_parent()
-  local parent = fn.fnamemodify(state.root, ":h")
-  if parent ~= state.root then
-    state.root = parent
-    state.expanded = {}
-    render()
+  local src = state.clipboard.path
+  local filename = fn.fnamemodify(src, ":t")
+  local target = dest .. "/" .. filename
+
+  if target == src then
+    vim.notify("Cannot paste to same location", vim.log.levels.WARN)
+    return
   end
+
+  if state.clipboard.move then
+    local ok = os.rename(src, target)
+    if not ok then vim.notify("Move failed", vim.log.levels.ERROR) return end
+    vim.notify("Moved: " .. filename)
+  else
+    if state.clipboard.is_dir then
+      vim.fn.system({ "cp", "-r", src, target })
+      if vim.v.shell_error ~= 0 then vim.notify("Copy failed", vim.log.levels.ERROR) return end
+    else
+      local function copy_file(s, d)
+        local sf = io.open(s, "rb")
+        if not sf then return false end
+        local data = sf:read("*a")
+        sf:close()
+        local df = io.open(d, "wb")
+        if not df then return false end
+        df:write(data)
+        df:close()
+        return true
+      end
+      if not copy_file(src, target) then vim.notify("Copy failed", vim.log.levels.ERROR) return end
+    end
+    vim.notify("Copied: " .. filename)
+  end
+
+  state.clipboard = nil
+  state.expanded[dest] = true
+  refresh()
 end
 
--- Set up keymaps
+-- Keymaps
 local function setup_keymaps()
   local opts = { buffer = state.buf, silent = true, nowait = true }
-
-  -- Navigation
   vim.keymap.set("n", "<CR>", toggle_or_open, opts)
   vim.keymap.set("n", "l", toggle_or_open, opts)
   vim.keymap.set("n", "h", collapse, opts)
-  vim.keymap.set("n", "o", toggle_or_open, opts)
-
-  -- Expand/collapse
-  vim.keymap.set("n", "E", expand_all, opts)
-  vim.keymap.set("n", "W", collapse_all, opts)
-
-  -- File operations
-  vim.keymap.set("n", "%", create_file, opts)
-  vim.keymap.set("n", "d", create_dir, opts)
-  vim.keymap.set("n", "D", delete_item, opts)
-  vim.keymap.set("n", "r", rename_item, opts)
-
-  -- Root operations
-  vim.keymap.set("n", "C", change_root, opts)
-  vim.keymap.set("n", "u", root_parent, opts)
-
-  -- Toggle hidden files
   vim.keymap.set("n", "H", toggle_hidden, opts)
-
-  -- Refresh and close
-  vim.keymap.set("n", "R", render, opts)
   vim.keymap.set("n", "q", M.close, opts)
   vim.keymap.set("n", "<Esc>", M.close, opts)
+
+  vim.keymap.set("n", "a", create_file, opts)
+  vim.keymap.set("n", "A", create_dir, opts)
+  vim.keymap.set("n", "d", delete_item, opts)
+  vim.keymap.set("n", "r", rename_item, opts)
+  vim.keymap.set("n", "y", copy_item, opts)
+  vim.keymap.set("n", "x", move_item, opts)
+  vim.keymap.set("n", "p", paste_item, opts)
+  vim.keymap.set("n", "R", refresh, opts)
 end
 
 -- Open explorer
 function M.open()
-  -- If already open, just focus it
   if state.win and vim.api.nvim_win_is_valid(state.win) then
     vim.api.nvim_set_current_win(state.win)
     return
   end
 
-  -- Create buffer if needed
   if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then
     state.buf = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_buf_set_name(state.buf, "FileTree")
-
-    -- Buffer options
-    vim.api.nvim_buf_set_option(state.buf, "bufhidden", "wipe")
-    vim.api.nvim_buf_set_option(state.buf, "filetype", "filetree")
-    vim.api.nvim_buf_set_option(state.buf, "buftype", "nofile")
-    vim.api.nvim_buf_set_option(state.buf, "swapfile", false)
-    vim.api.nvim_buf_set_option(state.buf, "modifiable", false)
-    vim.api.nvim_buf_set_option(state.buf, "buflisted", false)
+    vim.bo[state.buf].bufhidden = "wipe"
+    vim.bo[state.buf].filetype = "filetree"
+    vim.bo[state.buf].buftype = "nofile"
+    vim.bo[state.buf].swapfile = false
+    vim.bo[state.buf].modifiable = false
+    vim.bo[state.buf].buflisted = false
+    
+    setup_keymaps()
   end
 
-  -- Set root to current working directory
-  if not state.root then
-    state.root = fn.getcwd()
-  end
-
-  -- Create window
+  state.root = state.root or fn.getcwd()
   vim.cmd("topleft 35vsplit")
   state.win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(state.win, state.buf)
 
-  -- Window options
-  vim.api.nvim_win_set_option(state.win, "number", false)
-  vim.api.nvim_win_set_option(state.win, "relativenumber", false)
-  vim.api.nvim_win_set_option(state.win, "signcolumn", "no")
-  vim.api.nvim_win_set_option(state.win, "wrap", false)
-  vim.api.nvim_win_set_option(state.win, "cursorline", true)
+  vim.wo[state.win].wrap = false
+  vim.wo[state.win].cursorline = true
+  vim.wo[state.win].number = false
+  vim.wo[state.win].relativenumber = false
+  vim.wo[state.win].signcolumn = "no"
+  vim.wo[state.win].foldcolumn = "0"
+  vim.wo[state.win].spell = false
 
-  -- Set up keymaps and render
-  setup_keymaps()
   render()
 end
 
--- Close explorer
 function M.close()
   if state.win and vim.api.nvim_win_is_valid(state.win) then
     vim.api.nvim_win_close(state.win, true)
     state.win = nil
+    state.last_cursor = nil
   end
 end
 
--- Toggle explorer
 function M.toggle()
   if state.win and vim.api.nvim_win_is_valid(state.win) then
     M.close()
@@ -470,14 +376,10 @@ function M.toggle()
   end
 end
 
--- Setup function
 function M.setup(opts)
   opts = opts or {}
-
-  -- Set up toggle keymap
   vim.keymap.set("n", "<leader>e", M.toggle, { desc = "Toggle file tree" })
-
-  -- Optional: auto-close on file open
+  
   if opts.auto_close then
     vim.api.nvim_create_autocmd("BufEnter", {
       callback = function()
