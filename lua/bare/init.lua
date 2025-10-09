@@ -5,6 +5,7 @@ require("bare.status")
 require("bare.cmp")
 require("bare.lsp")
 
+require("bare.surround").setup()
 require("bare.marks").setup()
 require("bare.fzf").setup()
 require("bare.liveserver").setup({ default_port = 8080 })
