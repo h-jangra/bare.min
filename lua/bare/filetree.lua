@@ -171,13 +171,12 @@ end
 
 -- === File operations === --
 
-local function prompt_input(prompt)
-  vim.ui.input({ prompt = prompt .. ": " }, function(input)
-    if input then
-      return input
-    end
+local function prompt_input(prompt, default)
+  local input = nil
+  vim.ui.input({ prompt = prompt .. ": ", default = default or "" }, function(result)
+    input = result
   end)
-  return vim.fn.input(prompt .. ": ")
+  return input
 end
 
 local function refresh()
@@ -198,7 +197,7 @@ local function create_file()
   end
   
   local name = prompt_input("New file name")
-  if name == "" then return end
+  if not name or name == "" then return end
   
   local path = parent_dir .. "/" .. name
   local ok, err = io.open(path, "w")
@@ -225,7 +224,7 @@ local function create_dir()
   end
   
   local name = prompt_input("New directory name")
-  if name == "" then return end
+  if not name or name == "" then return end
   
   local path = parent_dir .. "/" .. name
   local ok = vim.fn.mkdir(path, "p")
@@ -246,7 +245,7 @@ local function delete_item()
   
   local name = fn.fnamemodify(item.path, ":t")
   local confirm = prompt_input("Delete " .. name .. "? (y/N)")
-  if confirm:lower() ~= "y" then return end
+  if not confirm or confirm:lower() ~= "y" then return end
   
   local ok = vim.fn.delete(item.path, item.is_dir and "rf" or "")
   if ok ~= 0 then 
@@ -262,15 +261,28 @@ local function rename_item()
   if not item then return end
   
   local old_name = fn.fnamemodify(item.path, ":t")
-  local newname = prompt_input("Rename '" .. old_name .. "' to")
-  if newname == "" then return end
+  local new_name = prompt_input("Rename '" .. old_name .. "' to", old_name)
+  if not new_name or new_name == "" or new_name == old_name then return end
   
-  local newpath = fn.fnamemodify(item.path, ":h") .. "/" .. newname
-  local ok = os.rename(item.path, newpath)
+  local parent = fn.fnamemodify(item.path, ":h")
+  local new_path = parent .. "/" .. new_name
+  
+  -- Check if target already exists
+  if vim.fn.filereadable(new_path) == 1 or vim.fn.isdirectory(new_path) == 1 then
+    vim.notify("Target already exists: " .. new_name, vim.log.levels.ERROR)
+    return
+  end
+  
+  local ok, err = os.rename(item.path, new_path)
   if not ok then 
-    vim.notify("Rename failed", vim.log.levels.ERROR)
+    vim.notify("Rename failed: " .. tostring(err), vim.log.levels.ERROR)
   else
-    vim.notify("Renamed: " .. old_name .. " → " .. newname)
+    -- Update expanded state if it was a directory
+    if item.is_dir and state.expanded[item.path] then
+      state.expanded[item.path] = nil
+      state.expanded[new_path] = true
+    end
+    vim.notify("Renamed: " .. old_name .. " → " .. new_name)
   end
   refresh()
 end
@@ -308,47 +320,63 @@ local function paste_item()
   local filename = fn.fnamemodify(src, ":t")
   local target = dest .. "/" .. filename
 
+  -- Check if source still exists
+  if vim.fn.filereadable(src) == 0 and vim.fn.isdirectory(src) == 0 then
+    vim.notify("Source no longer exists", vim.log.levels.ERROR)
+    state.clipboard = nil
+    return
+  end
+
   if target == src then
     vim.notify("Cannot paste to same location", vim.log.levels.WARN)
     return
   end
 
+  -- Check if target already exists
+  if vim.fn.filereadable(target) == 1 or vim.fn.isdirectory(target) == 1 then
+    vim.notify("Target already exists: " .. filename, vim.log.levels.ERROR)
+    return
+  end
+
   if state.clipboard.move then
-    local ok = os.rename(src, target)
+    local ok, err = os.rename(src, target)
     if not ok then 
-      vim.notify("Move failed", vim.log.levels.ERROR)
+      vim.notify("Move failed: " .. tostring(err), vim.log.levels.ERROR)
       return
     end
     vim.notify("Moved: " .. filename)
+    state.clipboard = nil
   else
     if state.clipboard.is_dir then
-      vim.fn.system({ "cp", "-r", src, target })
+      -- Use system cp command for directories
+      local result = vim.fn.system({ "cp", "-r", src, target })
       if vim.v.shell_error ~= 0 then 
-        vim.notify("Copy failed", vim.log.levels.ERROR)
+        vim.notify("Copy failed: " .. result, vim.log.levels.ERROR)
         return
       end
     else
-      local function copy_file(s, d)
-        local sf = io.open(s, "rb")
-        if not sf then return false end
-        local data = sf:read("*a")
-        sf:close()
-        local df = io.open(d, "wb")
-        if not df then return false end
-        df:write(data)
-        df:close()
-        return true
-      end
-      
-      if not copy_file(src, target) then 
-        vim.notify("Copy failed", vim.log.levels.ERROR)
+      -- Copy file using Lua
+      local sf = io.open(src, "rb")
+      if not sf then 
+        vim.notify("Cannot read source file", vim.log.levels.ERROR)
         return
       end
+      
+      local data = sf:read("*a")
+      sf:close()
+      
+      local df = io.open(target, "wb")
+      if not df then 
+        vim.notify("Cannot write to destination", vim.log.levels.ERROR)
+        return
+      end
+      
+      df:write(data)
+      df:close()
     end
     vim.notify("Copied: " .. filename)
   end
 
-  state.clipboard = nil
   state.expanded[dest] = true
   refresh()
 end
