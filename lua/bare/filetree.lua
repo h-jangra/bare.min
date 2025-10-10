@@ -91,7 +91,7 @@ local function render()
     if state.last_cursor then
       pcall(vim.api.nvim_win_set_cursor, state.win, state.last_cursor)
     else
-      pcall(vim.api.nvim_win_set_cursor, state.win, {2, 0})
+      pcall(vim.api.nvim_win_set_cursor, state.win, { 2, 0 })
     end
   end
 end
@@ -138,7 +138,7 @@ end
 local function collapse()
   local item = get_current_item()
   if not item then return end
-  
+
   if item.is_dir and state.expanded[item.path] then
     state.expanded[item.path] = false
   else
@@ -150,14 +150,14 @@ local function collapse()
       for i, v in ipairs(state.line_to_path) do
         if v.path == parent then
           if state.win and vim.api.nvim_win_is_valid(state.win) then
-            vim.api.nvim_win_set_cursor(state.win, {i + 1, 0})
+            vim.api.nvim_win_set_cursor(state.win, { i + 1, 0 })
           end
           break
         end
       end
     end
   end
-  
+
   if state.win and vim.api.nvim_win_is_valid(state.win) then
     state.last_cursor = vim.api.nvim_win_get_cursor(state.win)
   end
@@ -170,7 +170,6 @@ local function toggle_hidden()
 end
 
 -- === File operations === --
-
 local function prompt_input(prompt, default)
   local input = nil
   vim.ui.input({ prompt = prompt .. ": ", default = default or "" }, function(result)
@@ -189,25 +188,52 @@ end
 local function create_file()
   local item = get_current_item()
   local parent_dir = state.root
-  
+
   if item and item.is_dir then
     parent_dir = item.path
   elseif item then
     parent_dir = fn.fnamemodify(item.path, ":h")
   end
-  
+
   local name = prompt_input("New file name")
   if not name or name == "" then return end
-  
+
   local path = parent_dir .. "/" .. name
   local ok, err = io.open(path, "w")
-  if ok then 
+  if ok then
     ok:close()
     vim.notify("Created: " .. name)
-  else 
+    -- Open the new file in a buffer
+    local prev_win = nil
+    for _, w in ipairs(vim.api.nvim_list_wins()) do
+      -- Check for any valid non-filetree window
+      if w ~= state.win and vim.api.nvim_win_get_config(w).relative == "" then
+        prev_win = w
+        break
+      end
+    end
+
+    if prev_win then
+      vim.api.nvim_set_current_win(prev_win)
+      vim.cmd("edit " .. fn.fnameescape(path))
+    else
+      -- If no other window exists, create a vertical split and open
+      if state.win and vim.api.nvim_win_is_valid(state.win) then
+        vim.cmd("wincmd l")   -- Try to move to the window to the right
+        if vim.api.nvim_get_current_win() == state.win then
+          -- If still in the filetree window, vsplit and then open
+          vim.cmd("vsplit")
+        end
+      end
+      vim.cmd("edit " .. fn.fnameescape(path))
+    end
+
+    -- Close the file tree
+    M.close()
+  else
     vim.notify("Error: " .. tostring(err), vim.log.levels.ERROR)
   end
-  
+
   -- Expand parent directory
   state.expanded[parent_dir] = true
   refresh()
@@ -216,24 +242,24 @@ end
 local function create_dir()
   local item = get_current_item()
   local parent_dir = state.root
-  
+
   if item and item.is_dir then
     parent_dir = item.path
   elseif item then
     parent_dir = fn.fnamemodify(item.path, ":h")
   end
-  
+
   local name = prompt_input("New directory name")
   if not name or name == "" then return end
-  
+
   local path = parent_dir .. "/" .. name
   local ok = vim.fn.mkdir(path, "p")
-  if ok == 0 then 
+  if ok == 0 then
     vim.notify("Failed to create directory", vim.log.levels.ERROR)
   else
     vim.notify("Created: " .. name)
   end
-  
+
   -- Expand parent directory
   state.expanded[parent_dir] = true
   refresh()
@@ -242,13 +268,13 @@ end
 local function delete_item()
   local item = get_current_item()
   if not item then return end
-  
+
   local name = fn.fnamemodify(item.path, ":t")
   local confirm = prompt_input("Delete " .. name .. "? (y/N)")
   if not confirm or confirm:lower() ~= "y" then return end
-  
+
   local ok = vim.fn.delete(item.path, item.is_dir and "rf" or "")
-  if ok ~= 0 then 
+  if ok ~= 0 then
     vim.notify("Failed to delete", vim.log.levels.ERROR)
   else
     vim.notify("Deleted: " .. name)
@@ -259,22 +285,22 @@ end
 local function rename_item()
   local item = get_current_item()
   if not item then return end
-  
+
   local old_name = fn.fnamemodify(item.path, ":t")
   local new_name = prompt_input("Rename '" .. old_name .. "' to", old_name)
   if not new_name or new_name == "" or new_name == old_name then return end
-  
+
   local parent = fn.fnamemodify(item.path, ":h")
   local new_path = parent .. "/" .. new_name
-  
+
   -- Check if target already exists
   if vim.fn.filereadable(new_path) == 1 or vim.fn.isdirectory(new_path) == 1 then
     vim.notify("Target already exists: " .. new_name, vim.log.levels.ERROR)
     return
   end
-  
+
   local ok, err = os.rename(item.path, new_path)
-  if not ok then 
+  if not ok then
     vim.notify("Rename failed: " .. tostring(err), vim.log.levels.ERROR)
   else
     -- Update expanded state if it was a directory
@@ -309,13 +335,13 @@ local function paste_item()
 
   local item = get_current_item()
   local dest = state.root
-  
+
   if item and item.is_dir then
     dest = item.path
   elseif item then
     dest = fn.fnamemodify(item.path, ":h")
   end
-  
+
   local src = state.clipboard.path
   local filename = fn.fnamemodify(src, ":t")
   local target = dest .. "/" .. filename
@@ -340,7 +366,7 @@ local function paste_item()
 
   if state.clipboard.move then
     local ok, err = os.rename(src, target)
-    if not ok then 
+    if not ok then
       vim.notify("Move failed: " .. tostring(err), vim.log.levels.ERROR)
       return
     end
@@ -350,27 +376,27 @@ local function paste_item()
     if state.clipboard.is_dir then
       -- Use system cp command for directories
       local result = vim.fn.system({ "cp", "-r", src, target })
-      if vim.v.shell_error ~= 0 then 
+      if vim.v.shell_error ~= 0 then
         vim.notify("Copy failed: " .. result, vim.log.levels.ERROR)
         return
       end
     else
       -- Copy file using Lua
       local sf = io.open(src, "rb")
-      if not sf then 
+      if not sf then
         vim.notify("Cannot read source file", vim.log.levels.ERROR)
         return
       end
-      
+
       local data = sf:read("*a")
       sf:close()
-      
+
       local df = io.open(target, "wb")
-      if not df then 
+      if not df then
         vim.notify("Cannot write to destination", vim.log.levels.ERROR)
         return
       end
-      
+
       df:write(data)
       df:close()
     end
@@ -417,7 +443,7 @@ function M.open()
     vim.bo[state.buf].swapfile = false
     vim.bo[state.buf].modifiable = false
     vim.bo[state.buf].buflisted = false
-    
+
     -- Setup keymaps once when buffer is created
     setup_keymaps()
   end
@@ -457,7 +483,7 @@ end
 function M.setup(opts)
   opts = opts or {}
   vim.keymap.set("n", "<leader>e", M.toggle, { desc = "Toggle file tree" })
-  
+
   if opts.auto_close then
     vim.api.nvim_create_autocmd("BufEnter", {
       callback = function()

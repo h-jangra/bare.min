@@ -1,4 +1,4 @@
-vim.g.netrw_banner = 0
+-- vim.g.netrw_banner = 0
 vim.g.netrw_liststyle = 3
 vim.g.netrw_mousemaps = 0
 vim.g.netrw_keepdir = 0
@@ -38,13 +38,3 @@ vim.api.nvim_create_autocmd("FileType", {
   end,
 })
 
--- -- Set window options only when l and h are working in all files
--- vim.api.nvim_create_autocmd("BufWinEnter", {
---   pattern = "*",
---   callback = function()
---     if vim.bo.filetype == "netrw" then
---       vim.wo.conceallevel = 3
---       vim.wo.concealcursor = "nvic"
---     end
---   end,
--- })
