@@ -69,7 +69,15 @@ end
 
 vim.o.winbar = "%{%v:lua.winbar_buffers()%}"
 
+local redraw_status
 vim.api.nvim_create_autocmd(
-  { "BufEnter", "BufWinEnter", "BufWritePost", "TabEnter", "WinEnter", "BufModifiedSet" },
-  { callback = function() vim.cmd("redrawstatus") end }
+  { "BufEnter", "BufWritePost" },
+  { callback = function()
+    if redraw_status then return end
+    redraw_status = true
+    vim.defer_fn(function()
+      vim.cmd("redrawstatus")
+      redraw_status = false
+    end, 10)
+  end }
 )

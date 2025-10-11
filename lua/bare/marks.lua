@@ -126,13 +126,9 @@ local function show_marks()
 end
 
 function M.setup()
-  -- vim.api.nvim_create_autocmd({ "BufEnter", "InsertLeave", "TextChanged" }, {
-  --   callback = update_signs
-  -- })
   vim.api.nvim_create_autocmd("CursorHold", { callback = update_signs })
   vim.api.nvim_create_user_command("Marks", show_marks, {})
   vim.keymap.set("n", "<leader>mm", show_marks, { desc = "Show marks" })
-  -- vim.schedule(update_signs)
 end
 
 return M

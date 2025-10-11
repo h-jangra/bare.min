@@ -9,3 +9,4 @@ require("bare.buffer").setup()
 - Load everything at once with ```require("bare")```.
 - Load only what you need with ```require("bare.module")```.
 
+

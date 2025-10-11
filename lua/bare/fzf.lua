@@ -1,7 +1,6 @@
 local M = {}
 local fn = vim.fn
 
--- Check if a command exists
 local function exists(cmd)
   return fn.executable(cmd) == 1
 end

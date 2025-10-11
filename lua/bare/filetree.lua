@@ -37,9 +37,11 @@ local function read_dir(path)
       table.insert(items, { name = name, path = path .. "/" .. name, is_dir = type == "directory" })
     end
   end
-
   table.sort(items, function(a, b)
-    return a.is_dir ~= b.is_dir and a.is_dir or a.name:lower() < b.name:lower()
+    if a.is_dir ~= b.is_dir then
+      return a.is_dir
+    end
+    return tostring(a.name):lower() < tostring(b.name):lower()
   end)
   return items
 end
