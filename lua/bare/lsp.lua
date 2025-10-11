@@ -16,7 +16,7 @@ local function on_attach(client, bufnr)
   -- Diagnostics
   vim.keymap.set('n', '<leader>d', vim.diagnostic.open_float, opts)
 
-  print("LSP attached: " .. client.name)
+  -- print("LSP atached: " .. client.name)
 end
 
 -- Configure diagnostics display
@@ -116,6 +116,39 @@ local servers = {
     init_options = {
       formatterMode = "typstyle",
     },
+  },
+
+  -- HTML
+  html = {
+    cmd = { "vscode-html-language-server", "--stdio" },
+    filetypes = { "html" },
+    root_dir = vim.fs.dirname(vim.fs.find({ "index.html", ".git" }, { upward = true })[1]),
+  },
+
+  -- CSS
+  cssls = {
+    cmd = { "vscode-css-language-server", "--stdio" },
+    filetypes = { "css", "scss", "less" },
+    root_dir = vim.fs.dirname(vim.fs.find({ "package.json", ".git" }, { upward = true })[1]),
+  },
+
+  -- JSON
+  jsonls = {
+    cmd = { "vscode-json-language-server", "--stdio" },
+    filetypes = { "json" },
+    root_dir = vim.fs.dirname(vim.fs.find({ ".git" }, { upward = true })[1]),
+    settings = {
+      json = {
+        validate = { enable = true },
+      },
+    },
+  },
+
+  -- TOML
+  taplo = {
+    cmd = { "taplo", "lsp" },
+    filetypes = { "toml" },
+    root_dir = vim.fs.dirname(vim.fs.find({ "Cargo.toml", ".git" }, { upward = true })[1]),
   },
 }
 

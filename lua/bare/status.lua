@@ -31,16 +31,54 @@ _G.status_line = function()
   set_hl("StlNormal", "#cdd6f4", "#313244")
   set_hl("StlModified", "#f38ba8", "#313244", true)
   set_hl("StlGit", "#f9e2af", "#313244")
-  set_hl("StlSize", "#f38ba8", "#313244")
+  set_hl("StlSize", "#a6e3a1", "#313244")
+  set_hl("StlLsp", "#f38ba8", "#313244", true)
 
   -- File info
-  local filename = vim.fn.expand('%:t')
+  local filename = vim.fn.fnamemodify(vim.fn.expand('%'), ':~:.')
   if filename == "" then filename = "[No Name]" end
 
   local file_hl = vim.bo.modified and "StlModified" or "StlNormal"
   if vim.bo.modified then filename = filename .. " ●" end
 
   local icon = icons.get(vim.bo.filetype) or ""
+
+  local function lsp_diagnostics_count(severity)
+    local bufnr = vim.api.nvim_get_current_buf()
+    local diagnostics = vim.diagnostic.get(bufnr, { severity = severity })
+    return #diagnostics
+  end
+
+  -- LSP status indicator
+  local function lsp_status()
+    local clients = vim.lsp.get_clients({ bufnr = 0 })
+    if vim.tbl_isempty(clients) then
+      return ""
+    end
+
+    -- Count diagnostics for the current buffer
+    local function count_diag(severity)
+      return #vim.diagnostic.get(0, { severity = severity })
+    end
+
+    local errors = count_diag(vim.diagnostic.severity.ERROR)
+    local warnings = count_diag(vim.diagnostic.severity.WARN)
+
+    local status_parts = {}
+
+    if errors > 0 then
+      table.insert(status_parts, string.format(" %d", errors))
+    end
+    if warnings > 0 then
+      table.insert(status_parts, string.format(" %d", warnings))
+    end
+
+    -- Add LSP client names
+    local names = vim.tbl_map(function(c) return c.name end, clients)
+    table.insert(status_parts, table.concat(names, ", "))
+
+    return "%#StlLsp# " .. table.concat(status_parts, " ")
+  end
 
   -- Git branch
   local git = ""
@@ -49,7 +87,7 @@ _G.status_line = function()
 
   -- File size
   local function get_file_size()
-    local size = vim.fn.getfsize(vim.fn.expand('%:p'))
+    local size = vim.fn.getfsize(vim.fn.expand('%:h'))
     if size <= 0 then return "0B" end
     local units = { "B", "KB", "MB", "GB" }
     local i = 1
@@ -67,9 +105,11 @@ _G.status_line = function()
   return table.concat({
     "%#StlMode#", " " .. mode.name .. " ",
     "%#StlModeAlt#", sep.right .. " ",
-    "%#" .. file_hl .. "#", icon .. " " .. filename .. " ",
+    -- "%#" .. file_hl .. "#", icon .. " " .. filename .. " ",
+    "%#" .. file_hl .. "#", filename .. " ",
     git ~= "" and "%#StlGit#" .. git .. " " or "",
     "%=", -- right align
+    lsp_status(),
     "%#StlNormal#", " " .. line .. ":" .. col .. " ",
     "%#StlSize#", " " .. size .. " ",
     "%#StlModeAlt#", sep.left,
