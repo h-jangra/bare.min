@@ -1,139 +1,126 @@
 local M = {}
-local fn = vim.fn
+local float = require("bare.float")
 
-local function exists(cmd)
-  return fn.executable(cmd) == 1
+-- Check if commands exist
+local function has_cmd(cmd)
+  return vim.fn.executable(cmd) == 1
 end
 
-local has = {
-  fzf = exists("fzf"),
-  rg = exists("rg"),
-  bat = exists("bat"),
+local tools = {
+  fzf = has_cmd("fzf"),
+  rg = has_cmd("rg"),
+  bat = has_cmd("bat"),
 }
 
--- Preview command
-local function preview()
-  return has.bat and "bat --style=numbers --color=always --line-range :500 {}" or "cat {}"
+-- Build preview command
+local function preview_cmd()
+  return tools.bat and "bat --style=numbers --color=always --line-range :500 {}" or "cat {}"
 end
 
--- Floating terminal
-local function float_term(cmd, tmp_file, on_select)
-  local w, h = math.floor(vim.o.columns * 0.9), math.floor(vim.o.lines * 0.9)
-  local buf = vim.api.nvim_create_buf(false, true)
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = "editor",
-    width = w,
-    height = h,
-    row = math.floor((vim.o.lines - h) / 2),
-    col = math.floor((vim.o.columns - w) / 2),
-    style = "minimal",
-    border = "rounded",
-  })
+-- Create floating window with fzf
+local function fzf_float(cmd, callback)
+  local tmp = vim.fn.tempname()
+  local full_cmd = string.format("%s > %s", cmd, tmp)
 
-  vim.fn.termopen(cmd, {
+  local buf = vim.api.nvim_create_buf(false, true)
+  local _, win = require("bare.float").open(buf, { modifiable = true })
+
+  vim.fn.termopen(full_cmd, {
     on_exit = function(_, code)
       vim.api.nvim_win_close(win, true)
-      if code == 0 and vim.fn.filereadable(tmp_file) == 1 then
-        local lines = vim.fn.readfile(tmp_file)
-        if lines and #lines > 0 and lines[1] ~= "" then
-          vim.schedule(function() on_select(lines[1]) end)
+      if code == 0 and vim.fn.filereadable(tmp) == 1 then
+        local result = vim.fn.readfile(tmp)[1]
+        if result and result ~= "" then
+          vim.schedule(function() callback(result) end)
         end
       end
-      vim.fn.delete(tmp_file)
+      vim.fn.delete(tmp)
     end,
   })
 
   vim.cmd("startinsert")
 end
 
--- FZF file picker
+-- File picker
 function M.files()
-  if not has.fzf then
+  if not tools.fzf then
     return vim.notify("fzf not installed", vim.log.levels.ERROR)
   end
 
-  local tmp = fn.tempname()
-  local cmd
-  if has.rg then
-    -- Exclude .git folder
-    cmd = "rg --files --hidden --follow --glob '!.git/*' --no-messages"
-  else
-    cmd = "find . -type f -not -path '*/.git/*'"
-  end
-  local fzf_cmd = string.format('%s | fzf --prompt="Files> " --preview="%s" > %s', cmd, preview(), tmp)
+  local find_cmd = tools.rg
+      and "rg --files --hidden --follow --glob '!.git/*'"
+      or "find . -type f -not -path '*/.git/*'"
 
-  float_term(fzf_cmd, tmp, function(f)
-    vim.cmd("edit " .. fn.fnameescape(f))
+  local cmd = string.format('%s | fzf --prompt="Files> " --preview="%s"', find_cmd, preview_cmd())
+
+  fzf_float(cmd, function(file)
+    vim.cmd("edit " .. vim.fn.fnameescape(file))
   end)
 end
 
--- FZF grep
+-- Live grep
 function M.grep()
-  if not (has.fzf and has.rg) then
-    return vim.notify("fzf + rg required", vim.log.levels.ERROR)
+  if not (tools.fzf and tools.rg) then
+    return vim.notify("fzf and rg required", vim.log.levels.ERROR)
   end
 
-  local tmp = fn.tempname()
-  local prev = has.bat and "bat --style=numbers --color=always --highlight-line {2} {1}" or "cat {1}"
-  local fzf_cmd = string.format(
+  local preview = tools.bat
+      and "bat --style=numbers --color=always --highlight-line {2} {1}"
+      or "cat {1}"
+
+  local cmd = string.format(
     'fzf --ansi --disabled --prompt="Grep> " --delimiter=: ' ..
-    '--preview="%s" ' ..
-    '--preview-window="right:60%%:wrap:+{2}-/2" ' ..
-    '--bind="change:reload:sleep 0.1; rg --column --line-number --no-heading --color=always --smart-case {q} || true" ' ..
-    '> %s',
-    prev:gsub('"', '\\"'), tmp
+    '--preview="%s" --preview-window="right:60%%:wrap:+{2}-/2" ' ..
+    '--bind="change:reload:sleep 0.1; rg --column --line-number --no-heading --color=always --smart-case {q} || true"',
+    preview:gsub('"', '\\"')
   )
 
-  float_term(fzf_cmd, tmp, function(line)
-    local parts = vim.split(line, ":", { plain = true })
-    if #parts >= 3 then
-      local file, lnum, col = parts[1], tonumber(parts[2]), tonumber(parts[3])
-      if file and lnum and col then
-        vim.cmd("edit " .. fn.fnameescape(file))
-        vim.api.nvim_win_set_cursor(0, { lnum, col - 1 })
-        vim.cmd("normal! zz")
-      end
+  fzf_float(cmd, function(line)
+    local file, lnum, col = line:match("([^:]+):(%d+):(%d+)")
+    if file and lnum and col then
+      vim.cmd("edit " .. vim.fn.fnameescape(file))
+      vim.api.nvim_win_set_cursor(0, { tonumber(lnum), tonumber(col) - 1 })
+      vim.cmd("normal! zz")
     end
   end)
 end
 
--- FZF buffer picker
+-- Buffer picker
 function M.buffers()
-  if not has.fzf then
+  if not tools.fzf then
     return vim.notify("fzf not installed", vim.log.levels.ERROR)
   end
 
-  local bufs = {}
+  local buffers = {}
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
     if vim.api.nvim_buf_is_loaded(b) then
       local name = vim.api.nvim_buf_get_name(b)
-      if name ~= "" then table.insert(bufs, name) end
+      if name ~= "" then
+        table.insert(buffers, name)
+      end
     end
   end
 
-  if #bufs == 0 then return vim.notify("No buffers", vim.log.levels.WARN) end
+  if #buffers == 0 then
+    return vim.notify("No buffers", vim.log.levels.WARN)
+  end
 
-  local tmp = fn.tempname()
-  local fzf_cmd = string.format(
-    'printf "%%s\\n" %s | fzf --prompt="Buffers> " --preview="%s" > %s',
-    fn.shellescape(table.concat(bufs, "\n")), preview(), tmp
+  local cmd = string.format(
+    'printf "%%s\\n" %s | fzf --prompt="Buffers> " --preview="%s"',
+    vim.fn.shellescape(table.concat(buffers, "\n")),
+    preview_cmd()
   )
 
-  float_term(fzf_cmd, tmp, function(f)
-    vim.cmd("buffer " .. fn.fnameescape(f))
+  fzf_float(cmd, function(file)
+    vim.cmd("buffer " .. vim.fn.fnameescape(file))
   end)
 end
 
 -- Setup keymaps
-function M.setup(keys)
-  keys = keys or {
-    ["<leader><leader>"] = M.files,
-    ["<leader>fw"] = M.grep,
-    ["<leader>fb"] = M.buffers,
-  }
-  for k, fn in pairs(keys) do
-    vim.keymap.set("n", k, fn, { desc = "FZF: " .. k })
-  end
+function M.setup()
+  vim.keymap.set("n", "<leader><leader>", M.files, { desc = "FZF Files" })
+  vim.keymap.set("n", "<leader>fw", M.grep, { desc = "FZF Grep" })
+  vim.keymap.set("n", "<leader>fb", M.buffers, { desc = "FZF Buffers" })
 end
 
 return M

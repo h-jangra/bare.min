@@ -11,3 +11,4 @@ require("bare.marks").setup()
 require("bare.filetree").setup()
 require("bare.pairs").setup()
 require("bare.liveserver").setup()
+

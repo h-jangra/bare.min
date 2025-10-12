@@ -1,8 +1,4 @@
--- ============================================================================
--- Simple Snippet Manager for Neovim
--- ============================================================================
--- This module provides a lightweight snippet system using Neovim's built-in
--- vim.snippet API. Press <C-k> to expand snippets or jump between placeholders.
+-- Press <C-k> to expand snippets or jump between placeholders.
 --
 -- Usage in your init.lua:
 --   local snippets = require("snippet")

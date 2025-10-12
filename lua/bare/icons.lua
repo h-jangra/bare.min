@@ -1,3 +1,8 @@
+--[[
+local icons = require("bare.icons")
+local icon = icons.get(vim.bo.filetype) or ""
+]]
+
 local M = {}
 
 M.icons = {

@@ -1,6 +1,5 @@
 local M = {}
 
--- Color palette
 local colors = {
 	bg = "#282c34",
 	bg_dark = "#21252b",
@@ -19,7 +18,6 @@ local colors = {
 	gray = "#3e4452",
 	gray_light = "#5c6370",
 
-	-- UI colors
 	cursor_line = "#2c323c",
 	selection = "#3e4451",
 	visual = "#3e4451",
@@ -27,7 +25,6 @@ local colors = {
 	match_paren = "#5c6370",
 }
 
--- Apply highlights
 function M.setup()
 	vim.cmd("hi clear")
 	if vim.fn.exists("syntax_on") then

@@ -1,5 +1,3 @@
-local icons = require("bare.icons")
-
 local modes = {
   n     = { bg = "#1e1e2e", fg = "#89b4fa", name = "N" },
   i     = { bg = "#1e1e2e", fg = "#a6e3a1", name = "I" },
@@ -40,14 +38,6 @@ _G.status_line = function()
 
   local file_hl = vim.bo.modified and "StlModified" or "StlNormal"
   if vim.bo.modified then filename = filename .. " ●" end
-
-  local icon = icons.get(vim.bo.filetype) or ""
-
-  local function lsp_diagnostics_count(severity)
-    local bufnr = vim.api.nvim_get_current_buf()
-    local diagnostics = vim.diagnostic.get(bufnr, { severity = severity })
-    return #diagnostics
-  end
 
   -- LSP status indicator
   local function lsp_status()
@@ -105,7 +95,6 @@ _G.status_line = function()
   return table.concat({
     "%#StlMode#", " " .. mode.name .. " ",
     "%#StlModeAlt#", sep.right .. " ",
-    -- "%#" .. file_hl .. "#", icon .. " " .. filename .. " ",
     "%#" .. file_hl .. "#", filename .. " ",
     git ~= "" and "%#StlGit#" .. git .. " " or "",
     "%=", -- right align
@@ -117,10 +106,7 @@ _G.status_line = function()
   })
 end
 
--- Set statusline
 vim.o.statusline = "%!v:lua.status_line()"
-
--- Refresh on mode change
 vim.api.nvim_create_autocmd("ModeChanged", {
   callback = function() vim.cmd("redrawstatus") end,
 })
