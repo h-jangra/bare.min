@@ -1,7 +1,5 @@
 local M = {}
-local float = require("bare.float")
 
--- Check if commands exist
 local function has_cmd(cmd)
   return vim.fn.executable(cmd) == 1
 end
@@ -12,22 +10,19 @@ local tools = {
   bat = has_cmd("bat"),
 }
 
--- Build preview command
 local function preview_cmd()
   return tools.bat and "bat --style=numbers --color=always --line-range :500 {}" or "cat {}"
 end
 
--- Create floating window with fzf
 local function fzf_float(cmd, callback)
   local tmp = vim.fn.tempname()
   local full_cmd = string.format("%s > %s", cmd, tmp)
-
   local buf = vim.api.nvim_create_buf(false, true)
-  local _, win = require("bare.float").open(buf, { modifiable = true })
+  local _, win = require("bare.float").open(buf)
 
   vim.fn.termopen(full_cmd, {
     on_exit = function(_, code)
-      vim.api.nvim_win_close(win, true)
+      require("bare.float").close(win)
       if code == 0 and vim.fn.filereadable(tmp) == 1 then
         local result = vim.fn.readfile(tmp)[1]
         if result and result ~= "" then
@@ -41,7 +36,6 @@ local function fzf_float(cmd, callback)
   vim.cmd("startinsert")
 end
 
--- File picker
 function M.files()
   if not tools.fzf then
     return vim.notify("fzf not installed", vim.log.levels.ERROR)
@@ -58,7 +52,6 @@ function M.files()
   end)
 end
 
--- Live grep
 function M.grep()
   if not (tools.fzf and tools.rg) then
     return vim.notify("fzf and rg required", vim.log.levels.ERROR)
@@ -85,7 +78,6 @@ function M.grep()
   end)
 end
 
--- Buffer picker
 function M.buffers()
   if not tools.fzf then
     return vim.notify("fzf not installed", vim.log.levels.ERROR)
@@ -116,7 +108,6 @@ function M.buffers()
   end)
 end
 
--- Setup keymaps
 function M.setup()
   vim.keymap.set("n", "<leader><leader>", M.files, { desc = "FZF Files" })
   vim.keymap.set("n", "<leader>fw", M.grep, { desc = "FZF Grep" })
