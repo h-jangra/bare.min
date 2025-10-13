@@ -1,6 +1,5 @@
-local function on_attach(client, bufnr)
+local function on_attach(_, bufnr)
   local opts = { buffer = bufnr, noremap = true, silent = true }
-
   -- Navigation
   vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
   vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
@@ -8,14 +7,10 @@ local function on_attach(client, bufnr)
   vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
   -- vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
   vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, opts)
-
   -- Code actions
   vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
-
   -- Diagnostics
   vim.keymap.set('n', '<leader>d', vim.diagnostic.open_float, opts)
-
-  -- print("LSP atached: " .. client.name)
 end
 
 -- Configure diagnostics display

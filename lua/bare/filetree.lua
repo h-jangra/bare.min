@@ -362,15 +362,9 @@ end
 
 function M.close()
   if state.win and vim.api.nvim_win_is_valid(state.win) then
-    local win_count = #vim.tbl_filter(function(w)
-      return vim.api.nvim_win_get_config(w).relative == ""
-    end, vim.api.nvim_list_wins())
-
-    if win_count > 1 then
-      vim.api.nvim_win_close(state.win, true)
-      state.win = nil
-      state.last_cursor = nil
-    end
+    vim.api.nvim_win_close(state.win, true)
+    state.win = nil
+    state.last_cursor = nil
   end
 end
 

@@ -77,7 +77,7 @@ _G.status_line = function()
 
   -- File size
   local function get_file_size()
-    local size = vim.fn.getfsize(vim.fn.expand('%:h'))
+    local size = vim.fn.getfsize(vim.fn.expand('%:p'))
     if size <= 0 then return "0B" end
     local units = { "B", "KB", "MB", "GB" }
     local i = 1

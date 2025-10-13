@@ -1,28 +1,51 @@
 local M = {}
-
 local function has_cmd(cmd)
   return vim.fn.executable(cmd) == 1
 end
-
 local tools = {
   fzf = has_cmd("fzf"),
   rg = has_cmd("rg"),
   bat = has_cmd("bat"),
 }
-
 local function preview_cmd()
-  return tools.bat and "bat --style=numbers --color=always --line-range :500 {}" or "cat {}"
+  return tools.bat
+      and "bat --style=numbers --color=always --line-range :500 {}"
+      or "cat {}"
+end
+local function open_float()
+  local width = math.floor(vim.o.columns * 0.8)
+  local height = math.floor(vim.o.lines * 0.8)
+  local row = math.floor((vim.o.lines - height) / 2)
+  local col = math.floor((vim.o.columns - width) / 2)
+
+  local buf = vim.api.nvim_create_buf(false, true)
+  local win = vim.api.nvim_open_win(buf, true, {
+    relative = "editor",
+    style = "minimal",
+    border = "solid",
+    row = row,
+    col = col,
+    width = width,
+    height = height,
+  })
+
+  vim.cmd("startinsert")
+  return buf, win
 end
 
+local function close_float(win)
+  if win and vim.api.nvim_win_is_valid(win) then
+    vim.api.nvim_win_close(win, true)
+  end
+end
 local function fzf_float(cmd, callback)
   local tmp = vim.fn.tempname()
   local full_cmd = string.format("%s > %s", cmd, tmp)
-  local buf = vim.api.nvim_create_buf(false, true)
-  local _, win = require("bare.float").open(buf)
+  local buf, win = open_float()
 
   vim.fn.termopen(full_cmd, {
     on_exit = function(_, code)
-      require("bare.float").close(win)
+      close_float(win)
       if code == 0 and vim.fn.filereadable(tmp) == 1 then
         local result = vim.fn.readfile(tmp)[1]
         if result and result ~= "" then
@@ -32,8 +55,6 @@ local function fzf_float(cmd, callback)
       vim.fn.delete(tmp)
     end,
   })
-
-  vim.cmd("startinsert")
 end
 
 function M.files()
@@ -78,40 +99,9 @@ function M.grep()
   end)
 end
 
-function M.buffers()
-  if not tools.fzf then
-    return vim.notify("fzf not installed", vim.log.levels.ERROR)
-  end
-
-  local buffers = {}
-  for _, b in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(b) then
-      local name = vim.api.nvim_buf_get_name(b)
-      if name ~= "" then
-        table.insert(buffers, name)
-      end
-    end
-  end
-
-  if #buffers == 0 then
-    return vim.notify("No buffers", vim.log.levels.WARN)
-  end
-
-  local cmd = string.format(
-    'printf "%%s\\n" %s | fzf --prompt="Buffers> " --preview="%s"',
-    vim.fn.shellescape(table.concat(buffers, "\n")),
-    preview_cmd()
-  )
-
-  fzf_float(cmd, function(file)
-    vim.cmd("buffer " .. vim.fn.fnameescape(file))
-  end)
-end
-
 function M.setup()
   vim.keymap.set("n", "<leader><leader>", M.files, { desc = "FZF Files" })
-  vim.keymap.set("n", "<leader>fw", M.grep, { desc = "FZF Grep" })
-  vim.keymap.set("n", "<leader>fb", M.buffers, { desc = "FZF Buffers" })
+  vim.keymap.set("n", "<leader>fw", M.grep, { desc = "Grep" })
 end
 
 return M
