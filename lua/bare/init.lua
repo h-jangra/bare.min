@@ -1,5 +1,5 @@
--- load onedark first otherwise bufferline colors wont work
-require("bare.onedark")
+-- load theme first otherwise bufferline colors wont work
+require("bare.theme").setup()
 require("bare.buffer")
 require("bare.status")
 require("bare.cmp")
@@ -11,5 +11,3 @@ require("bare.liveserver").setup()
 require("bare.marks").setup()
 require("bare.surround").setup()
 require("bare.pairs").setup()
-
-
