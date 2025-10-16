@@ -1,6 +1,5 @@
 local M = {}
 
--- Minimal Catppuccin-inspired palette (Mocha variant)
 local colors = {
   -- Base
   base = "#1e1e2e",
@@ -12,7 +11,7 @@ local colors = {
   subtext1 = "#bac2de",
   subtext0 = "#a6adc8",
 
-  -- Accents (minimal set)
+  -- Accents
   rosewater = "#f5e0dc",
   flamingo = "#f2cdcd",
   pink = "#f5c2e7",

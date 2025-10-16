@@ -15,7 +15,7 @@ local state = {
 local has_icons, icons = pcall(require, "bare.icons")
 
 local function get_icon(name, is_dir, is_expanded)
-  if is_dir then return is_expanded and "📂 " or "📁 " end
+  if is_dir then return is_expanded and " " or " " end
   if has_icons then
     local ext = name:match("^.+%.(.+)$")
     if ext then
@@ -23,7 +23,7 @@ local function get_icon(name, is_dir, is_expanded)
       if icon then return icon .. " " end
     end
   end
-  return "📄 "
+  return "󰈔 "
 end
 
 local function read_dir(path)
@@ -65,7 +65,7 @@ local function render()
   if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then return end
 
   local lines, map = build_tree(state.root, 0)
-  local header = "  " .. state.root .. "/" .. (state.show_hidden and "" or " (󱞞)")
+  local header = "  " .. state.root .. "/" .. (state.show_hidden and "" or " 󱞞")
   table.insert(lines, 1, header)
   for i = 2, #lines do lines[i] = "  " .. lines[i] end
 

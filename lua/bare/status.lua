@@ -1,112 +1,79 @@
 local modes = {
-  n     = { bg = "#1e1e2e", fg = "#89b4fa", name = "N" },
-  i     = { bg = "#1e1e2e", fg = "#a6e3a1", name = "I" },
-  v     = { bg = "#1e1e2e", fg = "#cba6f7", name = "V" },
-  V     = { bg = "#1e1e2e", fg = "#cba6f7", name = "V-L" },
-  [""] = { bg = "#1e1e2e", fg = "#cba6f7", name = "V-B" },
-  R     = { bg = "#1e1e2e", fg = "#f38ba8", name = "R" },
-  c     = { bg = "#1e1e2e", fg = "#f9e2af", name = "C" },
-  t     = { bg = "#1e1e2e", fg = "#fab387", name = "T" },
+  n = { letter = "N", color = "#89b4fa" },
+  i = { letter = "I", color = "#a6e3a1" },
+  v = { letter = "V", color = "#cba6f7" },
+  V = { letter = "V", color = "#cba6f7" },
+  [""] = { letter = "V", color = "#cba6f7" },
+  R = { letter = "R", color = "#f38ba8" },
+  c = { letter = "C", color = "#f9e2af" },
+  t = { letter = "T", color = "#fab387" },
 }
 
-local sep = { left = "", right = "" }
-
--- Set highlight group
-local function set_hl(name, fg, bg, bold)
-  local cmd = string.format("highlight %s guifg=%s guibg=%s", name, fg, bg)
-  if bold then cmd = cmd .. " gui=bold" end
-  vim.cmd(cmd)
+local function set_hl(name, fg, bg)
+  vim.cmd(string.format("highlight %s guifg=%s guibg=%s", name, fg, bg))
 end
 
--- Build statusline
+local function get_git_branch()
+  if vim.b.gitsigns_head then
+    return vim.b.gitsigns_head
+  end
+  local branch = vim.fn.system("git branch --show-current 2>/dev/null | tr -d '\\n'")
+  return (branch ~= "") and branch or nil
+end
+
+local function get_lsp_name()
+  local clients = vim.lsp.get_clients({ bufnr = 0 })
+  if not vim.tbl_isempty(clients) then
+    return clients[1].name
+  end
+  return nil
+end
+
+local function get_file_size()
+  local file = vim.fn.expand('%:p')
+  if file == "" then return "0" end
+  local size = vim.fn.getfsize(file)
+  if size <= 0 then return "0" end
+
+  local suffixes = { "B", "K", "M", "G" }
+  local i = 1
+
+  while size > 1024 and i < #suffixes do
+    size = size / 1024
+    i = i + 1
+  end
+  return string.format("%.1f%s", size, suffixes[i])
+end
+
 _G.status_line = function()
-  local mode_code = vim.api.nvim_get_mode().mode
-  local mode = modes[mode_code] or { fg = "#1e1e2e", bg = "#6c7086", name = mode_code:upper() }
+  local mode = vim.api.nvim_get_mode().mode
+  local mode_info = modes[mode] or { letter = "?", color = "#6c7086" }
 
-  -- Set dynamic highlights
-  set_hl("StlMode", mode.fg, mode.bg, true)
-  set_hl("StlModeAlt", mode.bg, "#313244")
-  set_hl("StlNormal", "#cdd6f4", "#313244")
-  set_hl("StlModified", "#f38ba8", "#313244", true)
-  set_hl("StlGit", "#f9e2af", "#313244")
-  set_hl("StlSize", "#a6e3a1", "#313244")
-  set_hl("StlLsp", "#f38ba8", "#313244", true)
+  set_hl("StlMode", mode_info.color, "#292c3c")
+  set_hl("StlText", "#cdd6f4", "#292c3c")
+  set_hl("StlGit", "#f9e2af", "#292c3c")
+  set_hl("StlLsp", "#cba6f7", "#292c3c")
 
-  -- File info
-  local filename = vim.fn.fnamemodify(vim.fn.expand('%'), ':~:.')
-  if filename == "" then filename = "[No Name]" end
+  local filepath = vim.fn.fnamemodify(vim.fn.expand('%'), ':~:.')
+  if filepath == "" then filepath = "[No Name]" end
+  if vim.bo.modified then filepath = filepath .. " ●" end
 
-  local file_hl = vim.bo.modified and "StlModified" or "StlNormal"
-  if vim.bo.modified then filename = filename .. " ●" end
-
-  -- LSP status indicator
-  local function lsp_status()
-    local clients = vim.lsp.get_clients({ bufnr = 0 })
-    if vim.tbl_isempty(clients) then
-      return ""
-    end
-
-    -- Count diagnostics for the current buffer
-    local function count_diag(severity)
-      return #vim.diagnostic.get(0, { severity = severity })
-    end
-
-    local errors = count_diag(vim.diagnostic.severity.ERROR)
-    local warnings = count_diag(vim.diagnostic.severity.WARN)
-
-    local status_parts = {}
-
-    if errors > 0 then
-      table.insert(status_parts, string.format(" %d", errors))
-    end
-    if warnings > 0 then
-      table.insert(status_parts, string.format(" %d", warnings))
-    end
-
-    -- Add LSP client names
-    local names = vim.tbl_map(function(c) return c.name end, clients)
-    table.insert(status_parts, table.concat(names, ", "))
-
-    return "%#StlLsp# " .. table.concat(status_parts, " ")
-  end
-
-  -- Git branch
-  local git = ""
-  local branch = vim.fn.system("git branch --show-current 2>/dev/null")
-  if branch and branch ~= "" then git = " " .. branch:gsub("\n", "") end
-
-  -- File size
-  local function get_file_size()
-    local size = vim.fn.getfsize(vim.fn.expand('%:p'))
-    if size <= 0 then return "0B" end
-    local units = { "B", "KB", "MB", "GB" }
-    local i = 1
-    while size >= 1024 and i < 4 do
-      size = size / 1024
-      i = i + 1
-    end
-    return string.format(i == 1 and "%d%s" or "%.1f%s", size, units[i])
-  end
-
-  -- Position
-  local line, col, total = vim.fn.line('.'), vim.fn.col('.'), vim.fn.line('$')
-  local size = get_file_size()
+  local git_branch = get_git_branch()
+  local lsp_name = get_lsp_name()
+  local file_size = get_file_size()
 
   return table.concat({
-    "%#StlMode#", " " .. mode.name .. " ",
-    "%#StlModeAlt#", sep.right .. " ",
-    "%#" .. file_hl .. "#", filename .. " ",
-    git ~= "" and "%#StlGit#" .. git .. " " or "",
-    "%=", -- right align
-    lsp_status(),
-    "%#StlNormal#", " " .. line .. ":" .. col .. " ",
-    "%#StlSize#", " " .. size .. " ",
-    "%#StlModeAlt#", sep.left,
-    "%#StlMode#", " " .. total .. " ",
+    "%#StlMode#", " ", mode_info.letter, "  ",
+    "%#StlText#", filepath, " ",
+    git_branch and ("%#StlGit# " .. git_branch .. " ") or "",
+    "%=",
+    lsp_name and ("%#StlLsp#" .. lsp_name .. " ") or "",
+    "%#StlText#", " ", vim.fn.line('$'), "",
+    "%#StlMode#", file_size, " "
   })
 end
 
 vim.o.statusline = "%!v:lua.status_line()"
-vim.api.nvim_create_autocmd("ModeChanged", {
-  callback = function() vim.cmd("redrawstatus") end,
+vim.api.nvim_create_autocmd({ "ModeChanged", "BufEnter", "BufModifiedSet" }, {
+  callback = function() vim.cmd("redrawstatus") end
 })
