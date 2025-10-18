@@ -107,7 +107,7 @@ local function show_marks()
     row = row,
     col = col,
     style = "minimal",
-    border = "single",
+    border = "rounded",
   })
   vim.api.nvim_set_option_value("cursorline", true, { win = win })
   vim.api.nvim_set_option_value("number", false, { win = win })

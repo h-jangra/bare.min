@@ -1,6 +1,7 @@
 vim.opt.completeopt = { "menu", "menuone", "noselect" }
 
 local lsp_attached = false
+local completion_debounce = nil
 
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(args)
@@ -11,7 +12,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
 vim.api.nvim_create_autocmd("LspDetach", {
   callback = function()
-    -- Check if any buffers still have LSP attached
     local has_attached_lsp = false
     for _, buf in ipairs(vim.api.nvim_list_bufs()) do
       if vim.b[buf].lsp_attached then
@@ -23,34 +23,33 @@ vim.api.nvim_create_autocmd("LspDetach", {
   end,
 })
 
--- Ctrl-Space to show signature help or trigger completion
+-- Manual completion trigger
 vim.keymap.set("i", "<C-Space>", function()
   if vim.fn.pumvisible() == 1 then
     return "<C-e>"
   end
 
-  -- Only trigger if LSP is available
   if not lsp_attached then
-    return ""
+    return "<C-x><C-n>"
   end
 
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
   local before = line:sub(1, col)
 
-  -- Check for unbalanced parentheses for signature help
+  -- Check if we're inside parentheses for signature help
   if select(2, before:gsub("%(", "")) > select(2, before:gsub("%)", "")) then
     vim.lsp.buf.signature_help()
     return ""
   end
 
+  -- Trigger LSP completion
   return "<C-x><C-o>"
 end, { expr = true })
 
--- Auto-trigger completion
+-- Smarter automatic completion with debouncing
 vim.api.nvim_create_autocmd("TextChangedI", {
   callback = function()
-    -- Don't trigger if completion window is already visible
     if vim.fn.pumvisible() == 1 then
       return
     end
@@ -59,24 +58,39 @@ vim.api.nvim_create_autocmd("TextChangedI", {
       return
     end
 
+    -- Clear any pending completion
+    if completion_debounce then
+      completion_debounce:close()
+      completion_debounce = nil
+    end
+
     local line = vim.api.nvim_get_current_line()
     local col = vim.api.nvim_win_get_cursor(0)[2]
     local before = line:sub(1, col)
+    local char_before = before:sub(-1, -1)
 
-    -- Trigger completion on word characters, dots, or colons (for methods)
-    if before:match("[%w_]$") or before:match("%.$") or before:match(":$") then
-      vim.schedule(function()
-        -- Double-check that completion isn't visible before triggering
-        if vim.fn.pumvisible() == 0 then
+    -- Only trigger completion in specific contexts to reduce LSP calls
+    local trigger_chars = {
+      ['.'] = true,  -- Object property
+      [':'] = true,  -- Type annotation or method call
+      ['>'] = true,  -- XML/JSX tag
+      ['\\'] = true, -- LaTeX or paths
+    }
+
+    -- Word characters and trigger characters
+    if char_before:match("[%w_]") or trigger_chars[char_before] then
+      completion_debounce = vim.defer_fn(function()
+        if vim.fn.pumvisible() == 0 and vim.api.nvim_get_mode().mode == "i" then
           local keys = vim.api.nvim_replace_termcodes("<C-x><C-o>", true, false, true)
           vim.api.nvim_feedkeys(keys, "n", false)
         end
-      end)
+        completion_debounce = nil
+      end, 100) -- 100ms debounce delay
     end
   end,
 })
 
--- Up/Down arrows navigate completion menu
+-- Navigation in completion menu
 vim.keymap.set("i", "<Down>", function()
   if vim.fn.pumvisible() == 1 then
     return "<C-n>"
@@ -93,7 +107,6 @@ vim.keymap.set("i", "<Up>", function()
   end
 end, { expr = true })
 
--- Enter to select completion
 vim.keymap.set("i", "<CR>", function()
   if vim.fn.pumvisible() == 1 then
     return "<C-y>"
@@ -101,3 +114,4 @@ vim.keymap.set("i", "<CR>", function()
     return "<CR>"
   end
 end, { expr = true })
+

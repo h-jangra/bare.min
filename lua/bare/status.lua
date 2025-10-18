@@ -68,7 +68,7 @@ _G.status_line = function()
     git_branch and ("%#StlGit# " .. git_branch .. " ") or "",
     "%=",
     lsp_name and ("%#StlLsp#" .. lsp_name .. " ") or "",
-    "%#StlText#", " ", vim.fn.line('$'), "",
+    "%#StlText#", " ", vim.fn.line('$'), " ",
     "%#StlMode#", file_size, " "
   })
 end
