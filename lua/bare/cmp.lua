@@ -43,11 +43,9 @@ vim.keymap.set("i", "<C-Space>", function()
     return ""
   end
 
-  -- Trigger LSP completion
   return "<C-x><C-o>"
 end, { expr = true })
 
--- Smarter automatic completion with debouncing
 vim.api.nvim_create_autocmd("TextChangedI", {
   callback = function()
     if vim.fn.pumvisible() == 1 then

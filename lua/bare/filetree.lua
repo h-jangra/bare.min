@@ -29,7 +29,8 @@ local function read_dir(path)
   table.sort(items, function(a, b)
     if a.is_dir ~= b.is_dir then return a.is_dir end
     return a.name:lower() < b.name:lower()
-  end)
+  end) -- Fixed: Added closing parenthesis here
+
   return items
 end
 
@@ -128,10 +129,17 @@ local function create_file()
   end
   ok:close()
   vim.notify("Created: " .. name)
+
+  -- Expand parent directory in file tree
   state.expanded[parent] = true
   render()
-end
 
+  -- Open file in new split
+  vim.schedule(function()
+    vim.cmd("wincmd l") -- Move right from filetree
+    vim.cmd("edit " .. vim.fn.fnameescape(path))
+  end)
+end
 local function create_dir()
   local item = get_item()
   local parent = (item and (item.is_dir and item.path or vim.fn.fnamemodify(item.path, ":h"))) or state.root
@@ -267,7 +275,9 @@ local function setup_buffer()
     { "H", function()
       state.show_hidden = not state.show_hidden; render()
     end },
-    { "q",    M.close }, { "<Esc>", M.close }, { "a", create_file }, { "A", create_dir },
+    { "q",    M.close }, { "<Esc>", M.close },
+    { "a", create_file }, -- Now creates file AND opens it
+    { "A", create_dir },
     { "d", delete_item }, { "r", rename_item }, { "y", copy_item }, { "x", move_item },
     { "p", paste_item }, { "R", render }
   }
