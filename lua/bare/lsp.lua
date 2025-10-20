@@ -90,15 +90,3 @@ vim.api.nvim_create_autocmd("FileType", {
     end
   end,
 })
-
--- local lsp_keys = { 'K', '<C-k>', '<leader>ca' }
--- for _, key in ipairs(lsp_keys) do
---   vim.keymap.set('n', key, function()
---     start_lsp(vim.api.nvim_get_current_buf())
---     vim.defer_fn(function()
---       local keys = vim.api.nvim_replace_termcodes(key, true, false, true)
---       vim.api.nvim_feedkeys(keys, 'm', false)
---     end, 50)
---   end, { silent = true })
--- end
-
