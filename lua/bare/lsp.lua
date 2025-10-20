@@ -1,166 +1,104 @@
--- Enhanced capabilities
-local capabilities = vim.lsp.protocol.make_client_capabilities()
-capabilities.textDocument.completion.completionItem.snippetSupport = true
-capabilities.textDocument.completion.completionItem.resolveSupport = {
-  properties = { 'documentation', 'detail', 'additionalTextEdits' }
-}
-capabilities.textDocument.foldingRange = {
-  dynamicRegistration = false,
-  lineFoldingOnly = true
-}
-
--- Improved on_attach function
-local function on_attach(_, bufnr)
-  local opts = { buffer = bufnr, noremap = true, silent = true }
-
-  -- Navigation
-  vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
-  vim.keymap.set('n', 'gD', vim.lsp.buf.declaration, opts)
-  vim.keymap.set('n', 'gi', vim.lsp.buf.implementation, opts)
-  vim.keymap.set('n', 'gr', vim.lsp.buf.references, opts)
-  vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
-  vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, opts)
-
-  -- Code actions
-  vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
-
-  -- Diagnostics
-  vim.keymap.set('n', '<leader>d', vim.diagnostic.open_float, opts)
-  vim.keymap.set('n', ']d', function() vim.diagnostic.jump({ count = 1 }) end, opts)
-  vim.keymap.set('n', '[d', function() vim.diagnostic.jump({ count = -1 }) end, opts)
-end
-
--- Configure diagnostics
-vim.diagnostic.config({
-  virtual_text = true,
-  signs = true,
-  underline = true,
-  update_in_insert = false,
-})
-
--- Server configurations with filetypes and commands
 local servers = {
-  -- Lua
   lua_ls = {
     cmd = { "lua-language-server" },
-    filetypes = { "lua" },
+    ft = { "lua" },
     settings = {
       Lua = {
         runtime = { version = "LuaJIT" },
         diagnostics = { globals = { "vim" } },
-        workspace = {
-          library = vim.api.nvim_get_runtime_file("", true),
-          checkThirdParty = false,
-        },
+        workspace = { library = vim.api.nvim_get_runtime_file("", true), checkThirdParty = false },
         telemetry = { enable = false },
       },
-    },
+    }
   },
-  -- Python
-  pyright = {
-    cmd = { "pyright-langserver", "--stdio" },
-    filetypes = { "python" },
-  },
-  -- TypeScript/JavaScript
-  ts_ls = {
-    cmd = { "typescript-language-server", "--stdio" },
-    filetypes = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
-  },
-  -- Rust
-  rust_analyzer = {
-    cmd = { "rust-analyzer" },
-    filetypes = { "rust" },
-  },
-
-  gopls = {
-    cmd = { "gopls" },
-    filetypes = { "go", "gomod", "gowork", "gotmpl" },
-  },
-
-  clangd = {
-    cmd = { "clangd" },
-    filetypes = { "c", "cpp", "objc", "objcpp" },
-  },
-  -- HTML
-  html = {
-    cmd = { "vscode-html-language-server", "--stdio" },
-    filetypes = { "html" },
-    root_dir = vim.fs.dirname(vim.fs.find({ "index.html", ".git" }, { upward = true })[1]),
-  },
-
-  -- CSS
-  cssls = {
-    cmd = { "vscode-css-language-server", "--stdio" },
-    filetypes = { "css", "scss", "less" },
-    root_dir = vim.fs.dirname(vim.fs.find({ "package.json", ".git" }, { upward = true })[1]),
-  },
-
-  -- JSON
-  jsonls = {
-    cmd = { "vscode-json-language-server", "--stdio" },
-    filetypes = { "json" },
-    root_dir = vim.fs.dirname(vim.fs.find({ ".git" }, { upward = true })[1]),
-    settings = {
-      json = {
-        validate = { enable = true },
-      },
-    },
-  },
-
-  -- TOML
-  taplo = {
-    cmd = { "taplo", "lsp" },
-    filetypes = { "toml" },
-    root_dir = vim.fs.dirname(vim.fs.find({ "Cargo.toml", ".git" }, { upward = true })[1]),
-  },
-
-  -- Typst
-  tinymist = {
-    cmd = { "tinymist", "lsp" },
-    filetypes = { "typst" },
-    root_dir = function()
-      return vim.fs.dirname(vim.fs.find({ '.git' }, { upward = true })[1])
-    end,
-    settings = {
-      exportPdf = 'onType',
-      formatterMode = 'typstyle',
-    },
-    init_options = {
-      formatterMode = 'typstyle',
-    },
-  },
+  pyright = { cmd = { "pyright-langserver", "--stdio" }, ft = { "python" } },
+  ts_ls = { cmd = { "typescript-language-server", "--stdio" }, ft = { "javascript", "javascriptreact", "typescript", "typescriptreact" } },
+  rust_analyzer = { cmd = { "rust-analyzer" }, ft = { "rust" } },
+  gopls = { cmd = { "gopls" }, ft = { "go", "gomod", "gowork", "gotmpl" } },
+  clangd = { cmd = { "clangd" }, ft = { "c", "cpp", "objc", "objcpp" } },
+  html = { cmd = { "vscode-html-language-server", "--stdio" }, ft = { "html" } },
+  cssls = { cmd = { "vscode-css-language-server", "--stdio" }, ft = { "css", "scss", "less" } },
+  jsonls = { cmd = { "vscode-json-language-server", "--stdio" }, ft = { "json" } },
+  taplo = { cmd = { "taplo", "lsp" }, ft = { "toml" } },
+  tinymist = { cmd = { "tinymist", "lsp" }, ft = { "typst" }, settings = { exportPdf = 'onType', formatterMode = 'typstyle' } },
 }
 
--- Enhanced diagnostic signs
--- local signs = { Error = '✘', Warn = '▲', Hint = '⚑', Info = '»' }
--- for type, icon in pairs(signs) do
---   local hl = "DiagnosticSign" .. type
---   vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = hl })
--- end
+local ft_to_server = {}
+for name, config in pairs(servers) do
+  for _, ft in ipairs(config.ft) do
+    ft_to_server[ft] = name
+  end
+end
 
--- Autocommand to start LSP servers
+local attached = {}
+
+local function on_attach(_, bufnr)
+  if attached[bufnr] then return end
+  attached[bufnr] = true
+
+  local opts = { buffer = bufnr }
+  vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
+  vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, opts)
+  vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
+end
+
+local capabilities = nil
+local function get_capabilities()
+  if not capabilities then
+    capabilities = vim.lsp.protocol.make_client_capabilities()
+    capabilities.textDocument.completion.completionItem.snippetSupport = true
+  end
+  return capabilities
+end
+
+local root_patterns = { '.git', 'package.json', 'Cargo.toml', 'go.mod', 'pyproject.toml', 'setup.py' }
+local function find_root(bufnr)
+  local path = vim.api.nvim_buf_get_name(bufnr)
+  local root = vim.fs.dirname(vim.fs.find(root_patterns, { path = path, upward = true })[1])
+  return root or vim.fn.getcwd()
+end
+
+local function start_lsp(bufnr)
+  local ft = vim.bo[bufnr].filetype
+  if not ft or ft == "" then return end
+
+  local server_name = ft_to_server[ft]
+  if not server_name then return end
+
+  if #vim.lsp.get_clients({ bufnr = bufnr }) > 0 then return end
+
+  local config = servers[server_name]
+
+  vim.lsp.start({
+    name = server_name,
+    cmd = config.cmd,
+    root_dir = find_root(bufnr),
+    settings = config.settings,
+    on_attach = on_attach,
+    capabilities = get_capabilities(),
+  }, { bufnr = bufnr })
+end
+
 vim.api.nvim_create_autocmd("FileType", {
-  pattern = "*",
   callback = function(args)
-    local bufnr = args.buf
-    local ft = vim.bo[bufnr].filetype
-
-    for server_name, config in pairs(servers) do
-      if vim.tbl_contains(config.filetypes, ft) then
-        local clients = vim.lsp.get_clients({ bufnr = bufnr, name = server_name })
-        if #clients > 0 then
-          return
+    if ft_to_server[vim.bo[args.buf].filetype] then
+      vim.defer_fn(function()
+        if vim.api.nvim_buf_is_valid(args.buf) then
+          start_lsp(args.buf)
         end
-
-        vim.lsp.start({
-          name = server_name,
-          cmd = config.cmd,
-          root_dir = vim.fn.getcwd(),
-          settings = config.settings or {},
-          on_attach = on_attach,
-          capabilities = capabilities,
-        })
-      end
+      end, 0)
     end
   end,
 })
+
+-- local lsp_keys = { 'K', '<C-k>', '<leader>ca' }
+-- for _, key in ipairs(lsp_keys) do
+--   vim.keymap.set('n', key, function()
+--     start_lsp(vim.api.nvim_get_current_buf())
+--     vim.defer_fn(function()
+--       local keys = vim.api.nvim_replace_termcodes(key, true, false, true)
+--       vim.api.nvim_feedkeys(keys, 'm', false)
+--     end, 50)
+--   end, { silent = true })
+-- end
+

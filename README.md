@@ -5,17 +5,17 @@ A collection of minimal, modular Neovim Lua plugins.
 ```lua
 -- load theme first otherwise bufferline colors wont work
 require("bare.theme").setup()
-require("bare.buffer")
-require("bare.status")
-require("bare.cmp")
-require("bare.lsp")
-require("bare.fzf").setup()
-require("bare.netrw")
+require("bare.buffer") -- Bufferline
+require("bare.status") -- Statusline
+require("bare.cmp") -- LSP code completion
+require("bare.lsp") -- Native lsp
+require("bare.fzf").setup() -- Fuzzy finder with fzf & ripgrep
+require("bare.netrw") -- Better netrw settings
 require("bare.filetree").setup()
-require("bare.liveserver").setup()
-require("bare.marks").setup()
-require("bare.surround").setup()
-require("bare.pairs").setup()
+require("bare.liveserver").setup() -- Liveserver for html & typst
+require("bare.marks").setup() -- Visual marks in sign column
+require("bare.surround").setup() -- Surround text objects
+require("bare.pairs").setup() -- Auto bracket pairing
 ````
 
 - Load everything at once with `require("bare")`
