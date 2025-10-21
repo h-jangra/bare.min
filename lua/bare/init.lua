@@ -29,11 +29,12 @@ vim.defer_fn(function()
 end, 100)
 
 require("bare.theme").setup()
+require("bare.buffer")
+require("bare.status")
 
 vim.schedule(function()
   require("bare.pairs").setup()
-  require("bare.buffer")
-  require("bare.status")
+  require("bare.md").setup()
 end)
 
 vim.defer_fn(function()

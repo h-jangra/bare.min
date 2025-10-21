@@ -14,7 +14,11 @@ local servers = {
   pyright = { cmd = { "pyright-langserver", "--stdio" }, ft = { "python" } },
   ts_ls = { cmd = { "typescript-language-server", "--stdio" }, ft = { "javascript", "javascriptreact", "typescript", "typescriptreact" } },
   rust_analyzer = { cmd = { "rust-analyzer" }, ft = { "rust" } },
-  gopls = { cmd = { "gopls" }, ft = { "go", "gomod", "gowork", "gotmpl" } },
+  gopls =
+  {
+    cmd = { "gopls" },
+    ft = { "go", "gomod", "gowork", "gotmpl" }
+  },
   clangd = { cmd = { "clangd" }, ft = { "c", "cpp", "objc", "objcpp" } },
   html = { cmd = { "vscode-html-language-server", "--stdio" }, ft = { "html" } },
   cssls = { cmd = { "vscode-css-language-server", "--stdio" }, ft = { "css", "scss", "less" } },

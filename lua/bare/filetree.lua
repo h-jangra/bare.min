@@ -2,16 +2,29 @@ local M = {}
 local state = { expanded = {}, show_hidden = false, clipboard = nil }
 local has_icons, icons = pcall(require, "bare.icons")
 
+local folder_icons = {
+  expanded = { icon = " ", color = "#7ebae4" },
+  collapsed = { icon = " ", color = "#e4b87e" },
+  default = { icon = " ", color = "#d4d4d4" }
+}
+
 local function get_icon(name, is_dir, is_expanded)
-  if is_dir then return is_expanded and " " or " " end
+  if is_dir then
+    local folder_type = is_expanded and "expanded" or "collapsed"
+    return folder_icons[folder_type].icon, folder_icons[folder_type].color
+  end
+
   if has_icons then
     local ext = name:match("^.+%.(.+)$")
     if ext then
-      local icon = icons.get(ext)
-      if icon then return icon .. " " end
+      local icon = icons.get_icon(ext)
+      local color = icons.get_color(ext)
+      if icon and icon ~= "" then
+        return icon .. " ", color
+      end
     end
   end
-  return "󰈔 "
+  return "󰈔 ", "#6d8086"
 end
 
 local function read_dir(path)
@@ -29,30 +42,99 @@ local function read_dir(path)
   table.sort(items, function(a, b)
     if a.is_dir ~= b.is_dir then return a.is_dir end
     return a.name:lower() < b.name:lower()
-  end) -- Fixed: Added closing parenthesis here
+  end)
 
   return items
 end
 
-local function build_tree(path, depth, lines, map)
-  depth, lines, map = depth or 0, lines or {}, map or {}
+local function build_tree(path, depth, lines, map, extmarks)
+  depth, lines, map, extmarks = depth or 0, lines or {}, map or {}, extmarks or {}
   for _, item in ipairs(read_dir(path)) do
     local is_expanded = state.expanded[item.path]
-    table.insert(lines, string.rep("  ", depth) .. get_icon(item.name, item.is_dir, is_expanded) .. item.name)
+    local icon, icon_color = get_icon(item.name, item.is_dir, is_expanded)
+    local line_text = string.rep("  ", depth) .. icon .. item.name
+    table.insert(lines, line_text)
     table.insert(map, { path = item.path, is_dir = item.is_dir })
-    if item.is_dir and is_expanded then build_tree(item.path, depth + 1, lines, map) end
+
+    -- Store extmark information for highlighting
+    local indent_len = depth * 2
+    local icon_len = #icon
+
+    if item.is_dir then
+      -- Highlight folder icon
+      table.insert(extmarks, {
+        line = #lines - 1,
+        col = indent_len,
+        end_col = indent_len + icon_len,
+        hl = "FileTreeFolder" .. (is_expanded and "Expanded" or "Collapsed")
+      })
+    elseif has_icons then
+      local ext = item.name:match("^.+%.(.+)$")
+      if ext then
+        local hl = icons.get_hl(ext)
+        if hl then
+          table.insert(extmarks, {
+            line = #lines - 1,
+            col = indent_len,
+            end_col = indent_len + icon_len,
+            hl = hl
+          })
+        end
+      end
+    end
+
+    if item.is_dir and is_expanded then
+      build_tree(item.path, depth + 1, lines, map, extmarks)
+    end
   end
-  return lines, map
+  return lines, map, extmarks
+end
+
+local function setup_highlights()
+  -- Setup folder highlight groups
+  vim.api.nvim_set_hl(0, "FileTreeFolderExpanded", { fg = folder_icons.expanded.color, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeFolderCollapsed", { fg = folder_icons.collapsed.color, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeFolderDefault", { fg = folder_icons.default.color, bold = true })
 end
 
 local function render()
   if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then return end
-  local lines, map = build_tree(state.root or vim.fn.getcwd(), 0)
+
+  -- Setup highlights if not already done
+  setup_highlights()
+
+  local lines, map, extmarks = build_tree(state.root or vim.fn.getcwd(), 0)
   table.insert(lines, 1, "  " .. state.root .. "/" .. (state.show_hidden and "" or " 󱞞"))
   for i = 2, #lines do lines[i] = "  " .. lines[i] end
+
+  -- Adjust extmarks for the new line structure
+  for _, extmark in ipairs(extmarks) do
+    extmark.line = extmark.line + 1 -- Account for header line
+    extmark.col = extmark.col + 2   -- Account for the extra "  " prefix
+    extmark.end_col = extmark.end_col + 2
+  end
+
   state.line_to_path = map
   vim.bo[state.buf].modifiable = true
+
+  -- Clear existing extmarks
+  vim.api.nvim_buf_clear_namespace(state.buf, -1, 0, -1)
+
+  -- Set lines
   vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
+
+  -- Apply extmarks for highlighting
+  for _, extmark in ipairs(extmarks) do
+    vim.api.nvim_buf_add_highlight(
+      state.buf,
+      -1,
+      extmark.hl,
+      extmark.line,
+      extmark.col,
+      extmark.end_col
+    )
+  end
+
   vim.bo[state.buf].modifiable = false
   if state.win and vim.api.nvim_win_is_valid(state.win) then
     pcall(vim.api.nvim_win_set_cursor, state.win, state.last_cursor or { 2, 0 })
@@ -140,6 +222,7 @@ local function create_file()
     vim.cmd("edit " .. vim.fn.fnameescape(path))
   end)
 end
+
 local function create_dir()
   local item = get_item()
   local parent = (item and (item.is_dir and item.path or vim.fn.fnamemodify(item.path, ":h"))) or state.root
@@ -276,7 +359,7 @@ local function setup_buffer()
       state.show_hidden = not state.show_hidden; render()
     end },
     { "q",    M.close }, { "<Esc>", M.close },
-    { "a", create_file }, -- Now creates file AND opens it
+    { "a", create_file },
     { "A", create_dir },
     { "d", delete_item }, { "r", rename_item }, { "y", copy_item }, { "x", move_item },
     { "p", paste_item }, { "R", render }
@@ -320,6 +403,19 @@ end
 function M.setup(opts)
   opts = opts or {}
   vim.keymap.set("n", "<leader>e", M.toggle, { desc = "Toggle file tree" })
+
+  -- Setup folder highlights
+  setup_highlights()
+
+  -- Re-setup highlights on colorscheme change
+  vim.api.nvim_create_autocmd("ColorScheme", {
+    callback = function()
+      setup_highlights()
+      if state.buf and vim.api.nvim_buf_is_valid(state.buf) then
+        render()
+      end
+    end,
+  })
 
   if opts.auto_close then
     vim.api.nvim_create_autocmd("BufEnter", {
