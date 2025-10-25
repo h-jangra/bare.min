@@ -122,7 +122,7 @@ local function show_marks()
     end
   end
 
-  for i, m in ipairs(marks) do
+  for _, m in ipairs(marks) do
     vim.keymap.set("n", m.name, function()
       close()
       jump_to_mark(m)

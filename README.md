@@ -1,23 +1,83 @@
-# bare.nvim
-
+# bare.min
 A collection of minimal, modular Neovim Lua plugins.
 
-```lua
--- load theme first otherwise bufferline colors wont work
-require("bare.theme").setup()
-require("bare.buffer") -- Bufferline
-require("bare.status") -- Statusline
-require("bare.cmp") -- LSP code completion
-require("bare.lsp") -- Native lsp setup
-require("bare.fzf").setup() -- Fuzzy finder with fzf & ripgrep
-require("bare.netrw") -- Better netrw settings
-require("bare.filetree").setup()
-require("bare.liveserver").setup() -- Liveserver for html & typst
-require("bare.marks").setup() -- Visual marks in sign column
-require("bare.surround").setup() -- Surround text objects
-require("bare.pairs").setup() -- Auto bracket pairing
-```
+Load all modules with: `require("bare")`
 
-- Load everything at once with `require("bare")`
-- Load only what you need with `require("bare.module")`
+Or load a single module: `require("bare.module")`
+
+## Requirements
+- NVIM v12+
+- fzf & ripgrep for fuzzy finder
+- Busybox, Tinymist, and markdown_py for Typst/Markdown/HTML Preview
+
+## Features
+
+### 1. `bare.theme`
+
+Catppuccin inspired minimal theme for Neovim.
+
+![theme](./assets/theme.png)
+
+### 2. `bare.buffer`
+
+Enhanced buffer management.
+![buffer](./assets/buffer.png)
+
+### 3. `bare.status`
+
+Minimal status line.
+![status](./assets/status.png)
+
+### 4. `bare.pairs`
+
+Automatic pairs insertion for:
+
+* `()`
+* `{}`
+* `[]`
+* `''`
+* `""`
+* ` `` `
+
+### 5. `bare.md`
+
+Markdown preview inside Neovim.
+![md](./assets/md.png)
+
+### 6. `bare.filetree`
+
+File explorer integration.
+![filetree](./assets/filetree.png)
+
+### 7. `bare.fzf`
+
+Fuzzy file finder using FZF.
+
+![fzf](./assets/fzf.png)
+
+### 8. `bare.lsp`
+
+Native LSP setup.
+
+### 9. `bare.cmp`
+
+Native Completion using LSP setup.
+
+### 10. `bare.marks`
+
+Manage marks in buffers.
+
+![marks](./assets/marks.png)
+
+### 11. `bare.surround`
+
+Easily add/change/delete surrounding characters.
+
+### 12. `bare.imgPaste`
+
+Paste/Delete images from clipboard into markdown/typst files.
+
+### 13. `bare.preview`
+
+Preview HTML, Markdown and Typst files in browser.
 

@@ -41,7 +41,6 @@ function M.setup()
   end
 
   vim.o.background = "dark"
-  vim.g.colors_name = "catppuccin_minimal"
 
   local highlights = {
     -- Core UI
@@ -65,11 +64,6 @@ function M.setup()
     Search = { fg = colors.base, bg = colors.yellow },
     IncSearch = { fg = colors.base, bg = colors.peach },
     MatchParen = { fg = colors.green, bold = true },
-
-    -- Completion
-    Pmenu = { bg = colors.mantle },
-    PmenuSel = { bg = colors.surface0, bold = true },
-    PmenuThumb = { bg = colors.overlay0 },
 
     -- Syntax - minimal Catppuccin style
     Comment = { fg = colors.overlay0, italic = true },

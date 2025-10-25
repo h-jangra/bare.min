@@ -2,7 +2,7 @@ local M = {}
 
 function M.setup()
   vim.g.markdown_fenced_languages = {
-    "html", "python", "bash=sh", "lua", "javascript", "typescript", "json", "yaml", "go", "cpp", "c", "java"
+    "html", "python", "typst", "bash=sh", "lua", "javascript", "typescript", "json", "yaml", "go", "cpp", "c", "java"
   }
 
   local group = vim.api.nvim_create_augroup("MiniMarkdown", { clear = true })
@@ -19,19 +19,19 @@ function M.setup()
       local hl = vim.api.nvim_set_hl
 
       -- Headings
-      hl(0, "markdownH1", { fg = "#ff6767", bold = true })
-      hl(0, "markdownH2", { fg = "#ffaa55", bold = true })
-      hl(0, "markdownH3", { fg = "#d4b86e", bold = true })
-      hl(0, "markdownH4", { fg = "#7dd485", bold = true })
+      hl(0, "markdownH1", { fg = "#ff6f61", bold = true })
+      hl(0, "markdownH2", { fg = "#ffa657", bold = true })
+      hl(0, "markdownH3", { fg = "#f0c674", bold = true })
+      hl(0, "markdownH4", { fg = "#7fd5b1", bold = true })
 
       -- Emphasis
-      hl(0, "markdownBold", { bold = true, fg = "#e0e0e0" })
-      hl(0, "markdownItalic", { italic = true, fg = "#d0d0d0" })
+      hl(0, "markdownBold", { bold = true, fg = "#ffffff" })
+      hl(0, "markdownItalic", { italic = true, fg = "#cfcfcf" })
       hl(0, "markdownBoldItalic", { bold = true, italic = true, fg = "#ffffff" })
 
       -- Code blocks
-      hl(0, "markdownCodeBlock", { fg = "#f8f8f2", bg = "#282a36" })
-      hl(0, "markdownCodeDelimiter", { fg = "#6272a4" })
+      hl(0, "markdownCodeBlock", { fg = "#f8f8f2", bg = "#2c2f3e" })
+      hl(0, "markdownCodeDelimiter", { fg = "#8a8fbc" })
       hl(0, "markdownCode", { fg = "#8be9fd", bg = "#2a2d3a" })
 
       -- Links
@@ -43,10 +43,10 @@ function M.setup()
       hl(0, "markdownOrderedListMarker", { fg = "#bd93f9" })
 
       -- Blockquotes
-      hl(0, "markdownBlockquote", { fg = "#7a88a0", italic = true })
+      hl(0, "markdownBlockquote", { fg = "#8b95a9", italic = true })
 
       -- Horizontal rule
-      hl(0, "markdownRule", { fg = "#555555" })
+      hl(0, "markdownRule", { fg = "#666666" })
     end,
   })
 end

@@ -38,14 +38,14 @@ local function get_chars()
 end
 
 function M.open(open, close)
-  local before, after = get_chars()
+  local before, _ = get_chars()
   if before == '\\' or (open == close and before:match('[%w]')) then
     return open
   end
   return open .. close .. '<Left>'
 end
 
-function M.close(open, close)
+function M.close(_, close)
   local _, after = get_chars()
   if after == close then
     return '<Right>'

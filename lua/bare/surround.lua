@@ -1,4 +1,16 @@
+--[[
+Add, change, and delete surrounding characters (like parentheses, quotes, brackets) around words or visual selections.
+
+Keymaps:
+- Visual mode `sa`: Surround the selected text with a chosen character.
+- Normal mode `sa`: Surround the word under the cursor with a chosen character.
+- Normal mode `sd`: Delete surrounding characters around the cursor.
+- Normal mode `sc`: Change surrounding characters around the cursor.
+
+--]]
+
 local M = {}
+-- Supported pairs
 M.pairs = { ["("] = ")", ["["] = "]", ["{"] = "}", ['"'] = '"', ["'"] = "'", ["<"] = ">", ["`"] = "`" }
 
 -- Add surround
@@ -71,9 +83,18 @@ end
 
 function M.delete()
   local l, r = find_surround()
-  if not l then return print("No surround found") end
   local line = vim.api.nvim_get_current_line()
-  vim.api.nvim_set_current_line(line:sub(1, l - 1) .. line:sub(l + 1, r - 1) .. line:sub(r + 1))
+
+  if not l then
+    local left = vim.fn.input("Left surround character to delete: ")
+    if left == "" then return end
+    local right = M.pairs[left] or vim.fn.input("Right surround character to delete: ")
+    local s, e = line:find(left, 1, true), line:find(right, 1, true)
+    if not s or not e then return print("Surround not found") end
+    vim.api.nvim_set_current_line(line:sub(1, s - 1) .. line:sub(s + 1, e - 1) .. line:sub(e + 1))
+  else
+    vim.api.nvim_set_current_line(line:sub(1, l - 1) .. line:sub(l + 1, r - 1) .. line:sub(r + 1))
+  end
 end
 
 function M.change()

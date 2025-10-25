@@ -1,113 +1,72 @@
 vim.opt.completeopt = { "menu", "menuone", "noselect" }
 
-local lsp_attached = false
-local completion_debounce = nil
+local function has_lsp()
+  return #vim.lsp.get_clients({ bufnr = 0 }) > 0
+end
 
-vim.api.nvim_create_autocmd("LspAttach", {
-  callback = function(args)
-    vim.bo[args.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
-    lsp_attached = true
-  end,
-})
+-- For debounce completion
+local timer = vim.uv.new_timer()
+local function restart_timer(timeout, cb)
+  if not timer or timer:is_closing() then
+    timer = vim.uv.new_timer()
+  end
 
-vim.api.nvim_create_autocmd("LspDetach", {
-  callback = function()
-    local has_attached_lsp = false
-    for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.b[buf].lsp_attached then
-        has_attached_lsp = true
-        break
-      end
-    end
-    lsp_attached = has_attached_lsp
-  end,
-})
+  if timer then
+    timer:stop()
+    timer:start(timeout, 0, vim.schedule_wrap(cb))
+  end
+end
 
--- Manual completion trigger
+-- Trigger signature_help in function
 vim.keymap.set("i", "<C-Space>", function()
-  if vim.fn.pumvisible() == 1 then
-    return "<C-e>"
-  end
-
-  if not lsp_attached then
-    return "<C-x><C-n>"
-  end
+  if vim.fn.pumvisible() == 1 then return "<C-e>" end
+  if not has_lsp() then return "<C-x><C-n>" end
 
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
-  local before = line:sub(1, col)
 
-  -- Check if we're inside parentheses for signature help
-  if select(2, before:gsub("%(", "")) > select(2, before:gsub("%)", "")) then
+  if line:sub(1, col):match("%(") and not line:sub(1, col):match("%)") then
     vim.lsp.buf.signature_help()
     return ""
   end
 
   return "<C-x><C-o>"
-end, { expr = true })
+end, { expr = true, silent = true })
 
+-- Auto-trigger completion on typing
 vim.api.nvim_create_autocmd("TextChangedI", {
   callback = function()
-    if vim.fn.pumvisible() == 1 then
-      return
-    end
+    if vim.fn.pumvisible() == 1 or not has_lsp() then return end
 
-    if not lsp_attached then
-      return
-    end
-
-    -- Clear any pending completion
-    if completion_debounce then
-      completion_debounce:close()
-      completion_debounce = nil
-    end
+    if timer and not timer:is_closing() then timer:stop() end
 
     local line = vim.api.nvim_get_current_line()
     local col = vim.api.nvim_win_get_cursor(0)[2]
-    local before = line:sub(1, col)
-    local char_before = before:sub(-1, -1)
-
-    -- Only trigger completion in specific contexts to reduce LSP calls
-    local trigger_chars = {
-      ['.'] = true,  -- Object property
-      [':'] = true,  -- Type annotation or method call
-      ['>'] = true,  -- XML/JSX tag
-      ['\\'] = true, -- LaTeX or paths
-    }
-
-    -- Word characters and trigger characters
-    if char_before:match("[%w_]") or trigger_chars[char_before] then
-      completion_debounce = vim.defer_fn(function()
+    -- Trigger on word characters and common trigger characters
+    if line:sub(col, col):match("[%w_.:>]") then
+      restart_timer(100, function()
         if vim.fn.pumvisible() == 0 and vim.api.nvim_get_mode().mode == "i" then
-          local keys = vim.api.nvim_replace_termcodes("<C-x><C-o>", true, false, true)
-          vim.api.nvim_feedkeys(keys, "n", false)
+          vim.api.nvim_feedkeys(
+            vim.api.nvim_replace_termcodes("<C-x><C-o>", true, false, true),
+            "n",
+            false
+          )
         end
-        completion_debounce = nil
-      end, 100) -- 100ms debounce delay
+      end)
     end
   end,
 })
 
-vim.keymap.set("i", "<Down>", function()
-  if vim.fn.pumvisible() == 1 then
-    return "<C-n>"
-  else
-    return "<Down>"
-  end
-end, { expr = true })
+-- PUM navigation
+for _, k in ipairs({ "Down", "Up", "CR" }) do
+  local rhs = k == "Down" and "<C-n>" or k == "Up" and "<C-p>" or "<C-y>"
+  vim.keymap.set("i", k, function()
+    return vim.fn.pumvisible() == 1 and rhs or (k == "CR" and "<CR>" or "<" .. k .. ">")
+  end, { expr = true, silent = true })
+end
 
-vim.keymap.set("i", "<Up>", function()
-  if vim.fn.pumvisible() == 1 then
-    return "<C-p>"
-  else
-    return "<Up>"
-  end
-end, { expr = true })
-
-vim.keymap.set("i", "<CR>", function()
-  if vim.fn.pumvisible() == 1 then
-    return "<C-y>"
-  else
-    return "<CR>"
-  end
-end, { expr = true })
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(args)
+    vim.bo[args.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
+  end,
+})
