@@ -91,4 +91,5 @@ Short config for better netrw
 
 Wildmenu auto trigger and file picker with find
 
+![pick](./assets/pick.png)
 ![picker](./assets/picker.png)
