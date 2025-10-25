@@ -20,9 +20,9 @@ function _G.update_winbar()
       table.insert(listed_bufs, bufnr)
     end
   end
-
+  -- disable winbar for single buffer
   if #listed_bufs <= 1 then
-    vim.wo.winbar = nil -- disable winbar for single buffer
+    vim.wo.winbar = nil
     return
   end
 

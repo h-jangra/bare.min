@@ -8,7 +8,7 @@ Or load a single module: `require("bare.module")`
 ## Requirements
 - NVIM v12+
 - fzf & ripgrep for fuzzy finder
-- Busybox, Tinymist, and markdown_py for Typst/Markdown/HTML Preview
+- Busybox, Tinymist, and grip for Typst/Markdown/HTML Preview
 
 ## Features
 
@@ -26,7 +26,7 @@ Enhanced buffer management.
 ### 3. `bare.status`
 
 Minimal status line.
-![status](./assets/status.png)
+![statusline](./assets/statusline.png)
 
 ### 4. `bare.pairs`
 
@@ -81,3 +81,14 @@ Paste/Delete images from clipboard into markdown/typst files.
 
 Preview HTML, Markdown and Typst files in browser.
 
+### 14. `bare.netrw`
+
+Short config for better netrw
+
+![netrw](./assets/netrw.png)
+
+### 15. `bare.picker`
+
+Wildmenu auto trigger and file picker with find
+
+![picker](./assets/picker.png)
