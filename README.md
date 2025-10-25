@@ -21,11 +21,13 @@ Catppuccin inspired minimal theme for Neovim.
 ### 2. `bare.buffer`
 
 Enhanced buffer management.
+
 ![buffer](./assets/buffer.png)
 
 ### 3. `bare.status`
 
 Minimal status line.
+
 ![statusline](./assets/statusline.png)
 
 ### 4. `bare.pairs`
@@ -42,11 +44,13 @@ Automatic pairs insertion for:
 ### 5. `bare.md`
 
 Markdown preview inside Neovim.
+
 ![md](./assets/md.png)
 
 ### 6. `bare.filetree`
 
 File explorer integration.
+
 ![filetree](./assets/filetree.png)
 
 ### 7. `bare.fzf`
@@ -92,4 +96,5 @@ Short config for better netrw
 Wildmenu auto trigger and file picker with find
 
 ![pick](./assets/pick.png)
+
 ![picker](./assets/picker.png)
