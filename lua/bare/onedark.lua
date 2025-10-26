@@ -46,8 +46,8 @@ function M.setup()
   local highlights = {
     -- Core UI
     Normal = { fg = colors.text, bg = colors.base },
-    NormalFloat = { fg = colors.text, bg = colors.mantle },
-    FloatBorder = { fg = colors.visual_grey, bg = colors.mantle },
+    NormalFloat = { fg = colors.text, bg = colors.base },
+    FloatBorder = { fg = colors.visual_grey, bg = colors.base },
 
     -- Line numbers
     LineNr = { fg = colors.gutter_fg_grey },
@@ -69,7 +69,6 @@ function M.setup()
     -- Pmenu (completion menu)
     Pmenu = { fg = colors.text, bg = colors.menu_grey },
     PmenuSel = { fg = colors.text, bg = colors.subtext0, bold = true },
-    PmenuBorder = { fg = colors.visual_grey, bg = colors.menu_grey },
     PmenuSbar = { bg = colors.cursor_grey },
     PmenuThumb = { bg = colors.comment_grey },
 

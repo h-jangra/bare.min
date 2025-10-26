@@ -402,7 +402,8 @@ end
 
 function M.setup(opts)
   opts = opts or {}
-  vim.keymap.set("n", "<leader>e", M.toggle, { desc = "Toggle file tree" })
+
+  vim.keymap.set('n', '<leader>e', M.toggle, { desc = "Open file tree" })
 
   -- Setup folder highlights
   setup_highlights()
@@ -416,6 +417,10 @@ function M.setup(opts)
       end
     end,
   })
+
+  vim.api.nvim_create_user_command("FileTree", function()
+    M.toggle()
+  end, {})
 
   if opts.auto_close then
     vim.api.nvim_create_autocmd("BufEnter", {

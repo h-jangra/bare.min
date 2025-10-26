@@ -1,9 +1,15 @@
+--[[
+Usage:
+- Floating Terminal: <cmd>Floaterm
+- Floating Terminal with command: <cmd>Floaterm git status
+--]]
+
 local M = {}
 
 M.config = {
-  width = 0.4,
-  height = 0.4,
-  border = "single",
+  width = 0.5,
+  height = 0.5,
+  border = "rounded",
 }
 
 function M.setup(user_config)
@@ -27,6 +33,14 @@ function M.open(cmd)
     style = "minimal",
     border = M.config.border,
   })
+  local normal_hl = vim.api.nvim_get_hl(0, { name = 'Normal' })
+  local float_hl = vim.api.nvim_get_hl(0, { name = 'Special' })
+
+  local ns = vim.api.nvim_create_namespace("_floaterm_" .. tostring(win))
+  vim.api.nvim_win_set_hl_ns(win, ns)
+
+  vim.api.nvim_set_hl(ns, 'NormalFloat', { bg = normal_hl.bg })
+  vim.api.nvim_set_hl(ns, 'FloatBorder', { bg = normal_hl.bg, fg = float_hl.fg })
 
   if cmd and cmd ~= "" then
     vim.fn.jobstart(cmd, { term = true })
@@ -45,16 +59,6 @@ function M.open(cmd)
   return { buf = buf, win = win }
 end
 
-function M.toggle()
-  if M.terminal_win and vim.api.nvim_win_is_valid(M.terminal_win) then
-    vim.api.nvim_win_close(M.terminal_win, true)
-    M.terminal_win = nil
-    M.terminal_buf = nil
-  else
-    M.open()
-  end
-end
-
 function M.run_command(cmd)
   if M.terminal_win and vim.api.nvim_win_is_valid(M.terminal_win) then
     vim.api.nvim_win_close(M.terminal_win, true)
@@ -63,14 +67,10 @@ function M.run_command(cmd)
   M.open(cmd)
 end
 
-vim.api.nvim_create_user_command("FloatingTerm", function(opts)
+vim.api.nvim_create_user_command("Floaterm", function(opts)
   M.open(opts.args)
 end, { nargs = '?', desc = "Open floaterm with optional command" })
 
-vim.api.nvim_create_user_command("FloatingTermToggle", M.toggle, { desc = "Toggle floating terminal" })
-
-vim.api.nvim_create_user_command("Floaterm", function(opts)
-  M.run_command(opts.args)
-end, { nargs = '+', desc = "Run command in floating terminal" })
+vim.keymap.set("n", "<leader>t", "<cmd>Floaterm<cr>")
 
 return M

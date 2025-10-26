@@ -50,7 +50,7 @@ function M.setup()
     -- Core UI
     Normal = { fg = colors.text, bg = colors.base },
     NormalFloat = { fg = colors.text, bg = colors.mantle },
-    FloatBorder = { fg = colors.overlay0, bg = colors.mantle },
+    FloatBorder = { fg = colors.overlay0, bg = colors.base },
 
     -- Line numbers
     LineNr = { fg = colors.overlay0 },

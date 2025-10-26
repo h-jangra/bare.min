@@ -11,15 +11,27 @@ local function float_cmd(cmd, on_select)
   local buf = vim.api.nvim_create_buf(false, true)
   local width, height = math.floor(vim.o.columns * 0.8), math.floor(vim.o.lines * 0.6)
 
+
+
   local win = vim.api.nvim_open_win(buf, true, {
     relative = "editor",
     style = "minimal",
-    border = "solid",
+    border = "rounded",
     width = width,
     height = height,
     row = math.floor((vim.o.lines - height) / 3),
     col = math.floor((vim.o.columns - width) / 2),
   })
+
+  local normal_hl = vim.api.nvim_get_hl(0, { name = 'Normal' })
+  local float_hl = vim.api.nvim_get_hl(0, { name = 'Comment' })
+
+  local ns = vim.api.nvim_create_namespace("fzf_float_" .. tostring(win))
+  vim.api.nvim_win_set_hl_ns(win, ns)
+
+  vim.api.nvim_set_hl(ns, 'NormalFloat', { bg = normal_hl.bg })
+  vim.api.nvim_set_hl(ns, 'FloatBorder', { bg = normal_hl.bg, fg = float_hl.fg })
+
   vim.bo[buf].bufhidden = "wipe"
 
   vim.api.nvim_create_autocmd("TermClose", {
