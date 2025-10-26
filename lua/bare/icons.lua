@@ -20,6 +20,8 @@ M.icons = {
   c = { icon = "", color = "#a8b9cc" },
   cpp = { icon = "", color = "#00599c" },
   go = { icon = "", color = "#00add8" },
+  mod = { icon = "󰕳", color = "#51a0cf" },
+  sum = { icon = "󰕳", color = "#51a0cf" },
   rs = { icon = "", color = "#ef4c23" },
   rust = { icon = "", color = "#ef4c23" },
   html = { icon = "", color = "#e34c26" },

@@ -14,12 +14,29 @@ local function get_icon(ft)
 end
 
 function _G.update_winbar()
+  local win = vim.api.nvim_get_current_win()
+
+  -- Check if current window is floating
+  local win_config = vim.api.nvim_win_get_config(win)
+  if win_config.relative and win_config.relative ~= "" then
+    vim.wo.winbar = nil
+    return
+  end
+
+  -- Check if current buffer is terminal
+  local buftype = vim.bo.buftype
+  if buftype == "terminal" then
+    vim.wo.winbar = nil
+    return
+  end
+
   local listed_bufs = {}
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.bo[bufnr].buflisted then
+    if vim.bo[bufnr].buflisted and vim.bo[bufnr].buftype == "" then
       table.insert(listed_bufs, bufnr)
     end
   end
+
   -- disable winbar for single buffer
   if #listed_bufs <= 1 then
     vim.wo.winbar = nil

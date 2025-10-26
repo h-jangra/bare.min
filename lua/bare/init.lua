@@ -10,8 +10,11 @@ end
 
 vim.opt.shadafile = ""
 
-require("bare.theme").setup()
+-- require("bare.theme").setup()
+-- require("bare.serene").setup()
+require("bare.onedark").setup()
 require("bare.buffer")
+require("bare.keymaps")
 require("bare.status")
 
 vim.schedule(function()
@@ -25,6 +28,7 @@ vim.api.nvim_create_autocmd("VimEnter", {
     require("bare.picker")
     -- require("bare.netrw")
     require("bare.fzf").setup()
+    require("bare.floaterm")
   end,
   once = true
 })
@@ -41,3 +45,8 @@ vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
 })
 
 require("bare.preview").setup()
+
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "html,typst,markdown",
+  callback = function() require("bare.preview").setup() end
+})
