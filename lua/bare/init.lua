@@ -13,6 +13,7 @@ vim.opt.shadafile = ""
 
 require("bare.onedark").setup()
 require("bare.buffer")
+require("bare.options")
 require("bare.keymaps")
 require("bare.status")
 
