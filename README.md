@@ -14,7 +14,7 @@ Or load a single module: `require("bare.module")`
 
 ### 1. `bare.theme`
 
-Catppuccin inspired minimal theme for Neovim.
+Tokynight inspired minimal theme for Neovim.
 
 ![theme](./assets/theme.png)
 
@@ -43,7 +43,7 @@ Automatic pairs insertion for:
 
 ### 5. `bare.md`
 
-Markdown preview inside Neovim.
+Markdown styles inside Neovim.
 
 ![md](./assets/md.png)
 
