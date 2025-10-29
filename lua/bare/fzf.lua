@@ -57,7 +57,7 @@ function M.files()
   if not has("fzf") then return end
 
   local find_cmd = has("rg")
-      and "rg --files --hidden --follow --glob '!.git/*'"
+      and "rg --files --hidden --follow --glob '!.git/*' --glob '!**/*.png'"
       or "find . -type f -not -path '*/.git/*'"
 
   local preview = has("bat")
