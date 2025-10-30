@@ -33,14 +33,14 @@ function M.open(cmd)
     style = "minimal",
     border = M.config.border,
   })
-  local normal_hl = vim.api.nvim_get_hl(0, { name = 'Normal' })
-  local float_hl = vim.api.nvim_get_hl(0, { name = 'Special' })
+  local normal_hl = vim.api.nvim_get_hl(0, { name = 'Normal' }).bg
+  local float_hl = vim.api.nvim_get_hl(0, { name = 'Special' }).fg
 
   local ns = vim.api.nvim_create_namespace("_floaterm_" .. tostring(win))
   vim.api.nvim_win_set_hl_ns(win, ns)
 
-  vim.api.nvim_set_hl(ns, 'NormalFloat', { bg = normal_hl.bg })
-  vim.api.nvim_set_hl(ns, 'FloatBorder', { bg = normal_hl.bg, fg = float_hl.fg })
+  vim.api.nvim_set_hl(ns, 'NormalFloat', { bg = normal_hl })
+  vim.api.nvim_set_hl(ns, 'FloatBorder', { bg = normal_hl, fg = float_hl })
 
   if cmd and cmd ~= "" then
     vim.fn.jobstart(cmd, { term = true })

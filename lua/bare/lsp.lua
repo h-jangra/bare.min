@@ -22,7 +22,7 @@ local servers = {
   html = { cmd = { "vscode-html-language-server", "--stdio" }, ft = { "html" } },
   cssls = { cmd = { "vscode-css-language-server", "--stdio" }, ft = { "css", "scss", "less" } },
   jsonls = { cmd = { "vscode-json-language-server", "--stdio" }, ft = { "json" } },
-  taplo = { cmd = { "taplo", "lsp" }, ft = { "toml" } },
+  taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
   bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bashrc", "sh" } },
   tinymist = {
     cmd = { "tinymist", "lsp" },
@@ -43,6 +43,8 @@ end
 
 -- LSP attach function
 local function on_attach(_, bufnr)
+  vim.bo[bufnr].omnifunc = "v:lua.vim.lsp.omnifunc"
+
   local opts = { buffer = bufnr }
   vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
   vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, opts)
