@@ -1,40 +1,39 @@
+local function hl(name, opts) vim.api.nvim_set_hl(0, name, opts) end
 local function setup_winbar_highlights()
-  local hl = function(name, opts) vim.api.nvim_set_hl(0, name, opts) end
-
   hl("WinBarActive", { fg = "#7fb4ca", bg = "#2a2a37", bold = true })
   hl("WinBarInactive", { fg = "#54546d", bg = "#2a2a37" })
-  hl("WinBarModified", { fg = "#2a2a37", bg = "#7fb4ca", bold = true })
-  hl("WinBarModifiedInactive", { fg = "#54546d", bg = "#454555" })
+  hl("WinBarModified", { fg = "#ff9e64", bg = "#2a2a37", bold = true })
 end
 
-vim.api.nvim_create_autocmd("ColorScheme", {
-  callback = setup_winbar_highlights
-})
+vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_winbar_highlights })
 setup_winbar_highlights()
 
 local function get_buf_name(bufnr)
   local name = vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t")
-  return name == "" and "[No Name]" or name
+  return name ~= "" and name or "[No Name]"
+end
+
+function _G.goto_buf(bufnr)
+  if vim.api.nvim_buf_is_valid(bufnr) then
+    vim.api.nvim_set_current_buf(bufnr)
+  end
 end
 
 function _G.winbar_buffers()
-  local cur, parts = vim.api.nvim_get_current_buf(), {}
+  local cur = vim.api.nvim_get_current_buf()
+  local parts = {}
   local icons = require("bare.icons")
 
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
     if vim.bo[bufnr].buflisted then
-      local is_cur, is_mod = bufnr == cur, vim.bo[bufnr].modified
-
-      local group = is_cur and (is_mod and "WinBarModified" or "WinBarActive")
-          or (is_mod and "WinBarModifiedInactive" or "WinBarInactive")
+      local group = (bufnr == cur)
+          and (vim.bo[bufnr].modified and "WinBarModified" or "WinBarActive")
+          or (vim.bo[bufnr].modified and "WinBarModified" or "WinBarInactive")
 
       local icon = icons.get(vim.bo[bufnr].filetype) or "󰈚"
       local name = get_buf_name(bufnr)
 
-      table.insert(parts, string.format(
-        "%%%d@v:lua.goto_buf@%%#%s# %s %s %%X",
-        bufnr, group, icon, name
-      ))
+      table.insert(parts, string.format("%%%d@v:lua.goto_buf@%%#%s# %s %s %%X", bufnr, group, icon, name))
     end
   end
 
@@ -42,27 +41,22 @@ function _G.winbar_buffers()
 end
 
 local function update_winbar()
-  local win_config = vim.api.nvim_win_get_config(0)
-  local is_special_win = win_config.relative ~= "" or vim.bo.buftype == "terminal"
-
-  if is_special_win then
+  local cfg = vim.api.nvim_win_get_config(0)
+  if cfg.relative ~= "" or vim.bo.buftype == "terminal" then
     vim.wo.winbar = nil
     return
   end
 
-  local listed_count = 0
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.bo[bufnr].buflisted and vim.bo[bufnr].buftype == "" then
-      listed_count = listed_count + 1
-      if listed_count > 1 then break end
+  local listed = 0
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.bo[buf].buflisted and vim.bo[buf].buftype == "" then
+      listed = listed + 1
+      if listed > 1 then break end
     end
   end
 
-  vim.wo.winbar = listed_count > 1 and "%{%v:lua.winbar_buffers()%}" or nil
+  vim.wo.winbar = listed > 1 and "%{%v:lua.winbar_buffers()%}" or nil
 end
 
-vim.api.nvim_create_autocmd({ "BufAdd", "BufDelete", "BufEnter" }, {
-  callback = update_winbar
-})
-
+vim.api.nvim_create_autocmd({ "BufAdd", "BufDelete", "BufEnter" }, { callback = update_winbar })
 update_winbar()

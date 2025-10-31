@@ -35,31 +35,30 @@ local servers = {
   },
 }
 
--- map filetypes to servers
 local ft_to_server = {}
 for name, cfg in pairs(servers) do
   for _, ft in ipairs(cfg.ft) do ft_to_server[ft] = name end
 end
 
--- LSP attach function
 local function on_attach(_, bufnr)
   vim.bo[bufnr].omnifunc = "v:lua.vim.lsp.omnifunc"
+  vim.diagnostic.config({ virtual_text = true })
 
   local opts = { buffer = bufnr }
   vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
-  vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, opts)
+  vim.keymap.set('n', '<C-l>', vim.lsp.buf.signature_help, opts)
   vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
+  vim.keymap.set("n", "<C-j>", vim.diagnostic.goto_next, opts)
+  vim.keymap.set("n", "<C-k>", vim.diagnostic.goto_prev, opts)
   vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
 end
 
--- capabilities for completion
 local function get_capabilities()
   local cap = vim.lsp.protocol.make_client_capabilities()
   cap.textDocument.completion.completionItem.snippetSupport = true
   return cap
 end
 
--- minimal root finder
 local root_patterns = { '.git', 'package.json', 'Cargo.toml', 'go.mod', 'pyproject.toml', 'setup.py' }
 local function find_root(bufnr)
   local path = vim.api.nvim_buf_get_name(bufnr)
@@ -67,7 +66,6 @@ local function find_root(bufnr)
   return files[1] and vim.fs.dirname(files[1]) or vim.fn.getcwd()
 end
 
--- start LSP for buffer
 local function start_lsp(bufnr)
   local ft = vim.bo[bufnr].filetype
   local server_name = ft_to_server[ft]
@@ -83,7 +81,6 @@ local function start_lsp(bufnr)
   })
 end
 
--- auto start LSP on FileType
 vim.api.nvim_create_autocmd("FileType", {
   callback = function(args)
     if ft_to_server[vim.bo[args.buf].filetype] then start_lsp(args.buf) end

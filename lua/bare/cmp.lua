@@ -22,7 +22,7 @@ vim.api.nvim_create_autocmd("TextChangedI", {
     local char = line:sub(col, col)
 
     if char:match("[%w_]") or (col > 0 and line:sub(col - 1, col - 1) == ".") then
-      debounce(150, function()
+      debounce(100, function()
         if vim.fn.pumvisible() == 0 and vim.api.nvim_get_mode().mode == "i" then
           local key = has_lsp() and "<C-x><C-o>" or "<C-x><C-n>"
           vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes(key, true, false, true), "n", false)

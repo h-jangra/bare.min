@@ -1,5 +1,4 @@
 -- Requires fzf and ripgrep
-
 local M = {}
 
 local function has(cmd)
