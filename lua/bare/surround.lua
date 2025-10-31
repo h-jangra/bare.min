@@ -1,12 +1,9 @@
 --[[
-Add, change, and delete surrounding characters (like parentheses, quotes, brackets) around words or visual selections.
-
 Keymaps:
 - Visual mode `sa`: Surround the selected text with a chosen character.
 - Normal mode `sa`: Surround the word under the cursor with a chosen character.
 - Normal mode `sd`: Delete surrounding characters around the cursor.
 - Normal mode `sc`: Change surrounding characters around the cursor.
-
 --]]
 
 local M = {}

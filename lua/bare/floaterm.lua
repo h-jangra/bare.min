@@ -6,8 +6,8 @@
 local M = {}
 
 M.config = {
-  width = 0.8,
-  height = 0.8,
+  width = 0.9,
+  height = 0.9,
   border = "rounded",
 }
 
@@ -38,7 +38,7 @@ local function create_window()
   })
 
   vim.cmd.startinsert()
-  vim.api.nvim_buf_set_keymap(M.state.buf, "t", "<Esc>", "<C-\\><C-n>:FloatermToggle<CR>", {
+  vim.api.nvim_buf_set_keymap(M.state.buf, "t", "<Esc>", "<C-\\><C-n>:Floaterm<CR>", {
     noremap = true,
     silent = true,
   })
@@ -73,7 +73,11 @@ function M.open(cmd)
 end
 
 vim.api.nvim_create_user_command("Floaterm", function(opts)
-  M.open(opts.args)
+  if opts.args then
+    M.open(opts.args)
+  else
+    M.open("")
+  end
 end, { nargs = "?", desc = "Open floating terminal" })
 
 vim.keymap.set("n", "<leader>t", M.open, { desc = "Toggle floating terminal" })
