@@ -22,12 +22,11 @@ vim.schedule(function()
   require("bare.md").setup()
 end)
 
-require("bare.preview").setup()
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = { "html", "typst", "markdown", "md" },
+  callback = function() require("bare.preview").setup() end,
+})
 
--- vim.api.nvim_create_autocmd("FileType", {
---   pattern = "html,typst,markdown",
---   callback = function() require("bare.preview").setup() end
--- })
 
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   callback = function()

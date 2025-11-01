@@ -9,10 +9,10 @@ local modes = {
   t = { letter = "T", color = "#fab387" },
 }
 
-vim.api.nvim_set_hl(0, "StlText", { fg = "#cdd6f4", bg = "#313244" })
-vim.api.nvim_set_hl(0, "StlGit", { fg = "#f9e2af", bg = "#313244" })
-vim.api.nvim_set_hl(0, "StlLsp", { fg = "#cba6f7", bg = "#313244" })
-vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#313244" })
+vim.api.nvim_set_hl(0, "StlText", { fg = "#cdd6f4", bg = "#292c3c" })
+vim.api.nvim_set_hl(0, "StlGit", { fg = "#f9e2af", bg = "#292c3c" })
+vim.api.nvim_set_hl(0, "StlLsp", { fg = "#cba6f7", bg = "#292c3c" })
+vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#292c3c" })
 
 local cache = {
   branch = "",

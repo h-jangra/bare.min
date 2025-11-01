@@ -1,7 +1,6 @@
 vim.opt.completeopt = { "menu", "menuone", "noselect" }
 
-local uv = vim.uv
-local timer = uv.new_timer()
+local timer = vim.uv.new_timer()
 local completing = false
 
 local function debounce(ms, fn)
@@ -54,8 +53,10 @@ vim.api.nvim_create_autocmd("TextChangedI", {
 
 vim.keymap.set("i", "<C-Space>", function()
   if vim.fn.pumvisible() == 1 then return "<C-e>" end
+
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
+
   if has_lsp() and line:sub(1, col):match("%(") and not line:sub(1, col):match("%)") then
     vim.lsp.buf.signature_help()
   else

@@ -1,8 +1,8 @@
 local function hl(name, opts) vim.api.nvim_set_hl(0, name, opts) end
 local function setup_winbar_highlights()
   hl("WinBarActive", { fg = "#7fb4ca", bg = "#2a2a37", bold = true })
-  hl("WinBarInactive", { fg = "#54546d", bg = "#2a2a37" })
-  hl("WinBarModified", { fg = "#ff9e64", bg = "#2a2a37", bold = true })
+  hl("WinBarInactive", { fg = "#54546d", bg = "#2a2a37", italic = true })
+  hl("WinBarModified", { fg = "#2a2a37", bg = "#7fb4ca" })
 end
 
 vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_winbar_highlights })
