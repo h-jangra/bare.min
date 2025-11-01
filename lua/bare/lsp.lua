@@ -46,10 +46,10 @@ local function on_attach(_, bufnr)
 
   local opts = { buffer = bufnr }
   vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
-  vim.keymap.set('n', '<C-l>', vim.lsp.buf.signature_help, opts)
+  vim.keymap.set('n', '<C-k>', vim.lsp.buf.signature_help, opts)
   vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
-  vim.keymap.set("n", "<C-j>", function() vim.diagnostic.jump({ count = -1 }) end, opts)
-  vim.keymap.set("n", "<C-k>", function() vim.diagnostic.jump({ count = 1 }) end, opts)
+  vim.keymap.set("n", "<C-h>", function() vim.diagnostic.jump({ count = -1 }) end, opts)
+  vim.keymap.set("n", "<C-j>", function() vim.diagnostic.jump({ count = 1 }) end, opts)
   vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
 end
 

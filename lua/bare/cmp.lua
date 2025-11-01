@@ -18,7 +18,7 @@ local function trigger_completion()
   completing = true
 
   if has_lsp() then
-    pcall(vim.lsp.completion.trigger)
+    vim.lsp.completion.get({ bufnr = 0 })
     vim.defer_fn(function()
       if vim.fn.pumvisible() == 0 then
         vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
@@ -30,6 +30,18 @@ local function trigger_completion()
     completing = false
   end
 end
+
+-- Enable LSP completion on attach
+vim.api.nvim_create_autocmd("LspAttach", {
+  callback = function(args)
+    local client = vim.lsp.get_client_by_id(args.data.client_id)
+    if client then
+      vim.lsp.completion.enable(true, args.data.client_id, args.buf, {
+        autotrigger = true
+      })
+    end
+  end,
+})
 
 vim.api.nvim_create_autocmd("TextChangedI", {
   callback = function()
