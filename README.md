@@ -14,21 +14,15 @@ Or load a single module: `require("bare.module")`
 
 ### 1. `bare.theme`
 
-Tokynight inspired minimal theme for Neovim.
-
-![theme](./assets/theme.png)
+Catpuccin-mocha inspired minimal theme for Neovim.
 
 ### 2. `bare.buffer`
 
 Enhanced buffer management.
 
-![buffer](./assets/buffer.png)
-
 ### 3. `bare.status`
 
 Minimal status line.
-
-![statusline](./assets/statusline.png)
 
 ### 4. `bare.pairs`
 
@@ -45,19 +39,13 @@ Automatic pairs insertion for:
 
 Markdown styles inside Neovim.
 
-![md](./assets/md.png)
-
 ### 6. `bare.filetree`
 
 File explorer integration.
 
-![filetree](./assets/filetree.png)
-
 ### 7. `bare.fzf`
 
 Fuzzy file finder using FZF.
-
-![fzf](./assets/fzf.png)
 
 ### 8. `bare.lsp`
 
@@ -70,8 +58,6 @@ Native Completion using LSP setup.
 ### 10. `bare.marks`
 
 Manage marks in buffers.
-
-![marks](./assets/marks.png)
 
 ### 11. `bare.surround`
 
@@ -89,12 +75,6 @@ Preview HTML, Markdown and Typst files in browser.
 
 Short config for better netrw
 
-![netrw](./assets/netrw.png)
-
 ### 15. `bare.picker`
 
 Wildmenu auto trigger and file picker with find
-
-![pick](./assets/pick.png)
-
-![picker](./assets/picker.png)
