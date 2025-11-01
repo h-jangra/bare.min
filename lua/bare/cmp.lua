@@ -1,66 +1,55 @@
 vim.opt.completeopt = { "menu", "menuone", "noselect" }
+vim.opt.complete = { ".", "w", "b", "u", "t", "s", "i" }
 
 local timer = vim.uv.new_timer()
-local completing = false
-
-local function debounce(ms, fn)
-  if timer and not timer:is_closing() then timer:stop() end
-  if timer then timer:start(ms, 0, vim.schedule_wrap(fn)) end
-end
 
 local function has_lsp()
   return #vim.lsp.get_clients({ bufnr = 0 }) > 0
 end
 
-local function trigger_completion()
-  if completing or vim.fn.pumvisible() == 1 then return end
-  completing = true
-
-  if has_lsp() then
-    vim.lsp.completion.get({ bufnr = 0 })
-    vim.defer_fn(function()
-      if vim.fn.pumvisible() == 0 then
-        vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
-      end
-      completing = false
-    end, 80)
-  else
-    vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
-    completing = false
-  end
-end
-
--- Enable LSP completion on attach
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(args)
-    local client = vim.lsp.get_client_by_id(args.data.client_id)
-    if client then
-      vim.lsp.completion.enable(true, args.data.client_id, args.buf, {
-        autotrigger = true
-      })
-    end
+    vim.bo[args.buf].omnifunc = "v:lua.vim.lsp.omnifunc"
   end,
 })
 
 vim.api.nvim_create_autocmd("TextChangedI", {
   callback = function()
+    if vim.fn.pumvisible() == 1 then return end
     local line = vim.api.nvim_get_current_line()
     local col = vim.api.nvim_win_get_cursor(0)[2]
     local char = line:sub(col, col)
-    if char:match("[%w_.]") then debounce(100, trigger_completion) end
+    if char:match("[%w_]") or (col > 0 and line:sub(col - 1, col - 1) == ".") then
+      if timer then
+        timer:stop()
+        timer:start(150, 0, vim.schedule_wrap(function()
+          if vim.fn.pumvisible() == 0 and vim.api.nvim_get_mode().mode == "i" then
+            vim.api.nvim_feedkeys(vim.keycode(has_lsp() and "<C-x><C-o>" or "<C-x><C-n>"), "n", false)
+            if has_lsp() then
+              vim.defer_fn(function()
+                if vim.fn.pumvisible() == 0 then
+                  vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
+                end
+              end, 50)
+            end
+          end
+        end))
+      end
+    end
   end,
 })
 
+-- Ctrl+Space for manual completion or signature help
 vim.keymap.set("i", "<C-Space>", function()
-  if vim.fn.pumvisible() == 1 then return "<C-e>" end
-
+  if vim.fn.pumvisible() == 1 then
+    return vim.keycode("<C-e>")
+  end
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
-
-  if has_lsp() and line:sub(1, col):match("%(") and not line:sub(1, col):match("%)") then
+  if line:sub(1, col):match("%(") and not line:sub(1, col):match("%)") then
     vim.lsp.buf.signature_help()
   else
-    trigger_completion()
+    vim.lsp.completion.get()
   end
   return ""
 end, { expr = true, silent = true })
