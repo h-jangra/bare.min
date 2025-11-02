@@ -12,24 +12,24 @@ end
 vim.opt.shadafile = ""
 
 require("bare.theme").setup()
-require("bare.buffer")
 require("bare.options")
 require("bare.keymaps")
-require("bare.status")
 
 vim.schedule(function()
+  require("bare.buffer")
+  require("bare.status")
   require("bare.pairs").setup()
   require("bare.md").setup()
+  require("bare.preview").setup()
+  require("bare.cmp")
 end)
 
-require("bare.preview").setup()
 
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   callback = function()
     require("bare.marks").setup()
     require("bare.surround").setup()
     require("bare.lsp")
-    require("bare.cmp").setup()
     require("bare.picker")
 
     vim.defer_fn(function()
