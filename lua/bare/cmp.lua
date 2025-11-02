@@ -1,64 +1,75 @@
-vim.opt.completeopt = { 'menu', 'menuone', 'noselect' }
-
 local timer = vim.uv.new_timer()
-local completing = false
+vim.opt.completeopt = { "menu", "menuone", "noselect" }
 
-local function trigger_completion()
-  if completing or vim.fn.pumvisible() == 1 then return end
-  completing = true
-  if #vim.lsp.get_clients({ bufnr = 0 }) > 0 then
-    vim.lsp.completion.get({ bufnr = 0 })
-    vim.defer_fn(function()
-      if vim.fn.pumvisible() == 0 then
-        vim.api.nvim_feedkeys(vim.keycode('<C-x><C-n>'), 'n', false)
-      end
-      completing = false
-    end, 80)
-  else
-    vim.api.nvim_feedkeys(vim.keycode('<C-x><C-n>'), 'n', false)
-    completing = false
-  end
+local function show_signature()
+  vim.lsp.buf.signature_help()
 end
 
-vim.api.nvim_create_autocmd('LspAttach', {
-  callback = function(args)
-    vim.lsp.completion.enable(true, args.data.client_id, args.buf, { autotrigger = true })
-  end,
-})
+local function trigger_completion()
+  vim.lsp.completion.get({ bufnr = 0 })
+  vim.defer_fn(function()
+    if vim.fn.pumvisible() == 0 then
+      vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
+    end
+  end, 50)
+end
 
-vim.api.nvim_create_autocmd('TextChangedI', {
+vim.api.nvim_create_autocmd("TextChangedI", {
   callback = function()
-    if vim.api.nvim_get_current_line():sub(vim.api.nvim_win_get_cursor(0)[2], vim.api.nvim_win_get_cursor(0)[2]):match('[%w_.]') then
-      if timer and not timer:is_closing() then timer:stop() end
-      if timer then timer:start(100, 0, vim.schedule_wrap(trigger_completion)) end
+    local line = vim.api.nvim_get_current_line()
+    local col = vim.api.nvim_win_get_cursor(0)[2]
+
+    if col > 0 and line:sub(col, col):match("[%w_]") then
+      if timer then
+        timer:stop()
+        timer:start(120, 0, vim.schedule_wrap(trigger_completion))
+      end
     end
   end,
 })
 
-vim.keymap.set('i', '<C-Space>', function()
-  if vim.fn.pumvisible() == 1 then return '<C-e>' end
+vim.api.nvim_create_autocmd("CompleteDone", {
+  callback = function()
+    local item = vim.v.completed_item
+    if item and item.user_data then
+      pcall(function()
+        local ok, data = pcall(vim.json.decode, item.user_data)
+        if ok and data.snippet then
+          vim.snippet.expand(data.snippet)
+        end
+      end)
+    end
+  end,
+})
+
+vim.keymap.set("i", "<C-Space>", function()
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
-  if #vim.lsp.get_clients({ bufnr = 0 }) > 0 and line:sub(1, col):match('%(') and not line:sub(1, col):match('%)') then
-    vim.lsp.buf.signature_help()
+  if line:sub(1, col):match("%(") then
+    show_signature()
   else
     trigger_completion()
   end
-  return ''
-end, { expr = true, silent = true })
+end, { noremap = true, silent = true })
 
-vim.keymap.set('i', '<Tab>', function()
+vim.keymap.set("i", "<Tab>", function()
   if vim.snippet.active({ direction = 1 }) then
-    vim.snippet.jump(1)
-    return ''
+    vim.schedule(function() vim.snippet.jump(1) end)
+    return ""
+  elseif vim.fn.pumvisible() == 1 then
+    return "<C-n>"
+  else
+    return "<Tab>"
   end
-  return vim.fn.pumvisible() == 1 and '<C-n>' or '<Tab>'
-end, { expr = true, silent = true })
+end, { expr = true })
 
-vim.keymap.set('i', '<S-Tab>', function()
+vim.keymap.set("i", "<S-Tab>", function()
   if vim.snippet.active({ direction = -1 }) then
-    vim.snippet.jump(-1)
-    return ''
+    vim.schedule(function() vim.snippet.jump(-1) end)
+    return ""
+  elseif vim.fn.pumvisible() == 1 then
+    return "<C-p>"
+  else
+    return "<S-Tab>"
   end
-  return vim.fn.pumvisible() == 1 and '<C-p>' or '<S-Tab>'
-end, { expr = true, silent = true })
+end, { expr = true })

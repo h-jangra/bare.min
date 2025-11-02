@@ -4,7 +4,7 @@ vim.loader.enable()
 for _, plugin in ipairs({
   "gzip", "zip", "zipPlugin", "tar", "tarPlugin", "getscript", "getscriptPlugin",
   "vimball", "vimballPlugin", "2html_plugin", "logipat", "rrhelper", "spellfile_plugin",
-  "netrw", "netrwPlugin", "netrwSettings", "netrwFileHandlers",
+  -- "netrw", "netrwPlugin", "netrwSettings", "netrwFileHandlers",
 }) do
   vim.g["loaded_" .. plugin] = 1
 end
@@ -22,6 +22,7 @@ vim.schedule(function()
   require("bare.md").setup()
   require("bare.preview").setup()
   require("bare.cmp")
+  -- require("bare.netrw")
 end)
 
 

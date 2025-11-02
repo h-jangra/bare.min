@@ -11,15 +11,15 @@
 -- end
 --
 -- vim.o.findfunc = 'v:lua.GlobFindFiles'
-
 vim.opt.wildmenu = true
--- vim.opt.wildmode = 'noselect:lastused,full'
-vim.opt.wildmode = 'longest:full,full' -- auto select match
+vim.opt.wildmode = 'noselect:lastused,full'
+-- vim.opt.wildmode = 'longest:full,full' -- auto select match
 vim.opt.wildoptions = 'pum'
 vim.opt.wildignorecase = true
 vim.opt.path:append('**')
 
 vim.keymap.set('n', '<leader>f', ':find ', { desc = 'Fuzzy Find Files' })
+vim.keymap.set('n', '<leader>h', ":tab h ", { desc = 'Open Help File' })
 
 vim.api.nvim_create_autocmd("CmdlineChanged", {
   pattern = ":*",

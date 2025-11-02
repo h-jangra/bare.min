@@ -34,6 +34,7 @@ opt.updatetime = 200
 opt.timeoutlen = 300
 opt.ttimeoutlen = 10
 opt.mousescroll = "ver:5,hor:0"
+opt.winheight = 1
 
 -- Highlight on yank
 vim.api.nvim_create_autocmd("TextYankPost", {

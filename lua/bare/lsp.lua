@@ -42,13 +42,15 @@ for name, cfg in pairs(servers) do
   for _, ft in ipairs(cfg.ft) do ft_to_server[ft] = name end
 end
 
-local function on_attach(_, bufnr)
+local function on_attach(client, bufnr)
+  vim.lsp.completion.enable(true, client.id, bufnr, { autotrigger = true })
+
   local opts = { buffer = bufnr }
   vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
-  vim.keymap.set('n', '<C-l>', vim.lsp.buf.signature_help, opts)
+  vim.keymap.set({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts)
   vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
   vim.keymap.set("n", "<C-j>", function() vim.diagnostic.jump({ count = -1, float = true }) end, opts)
-  vim.keymap.set("n", "<C-k>", function() vim.diagnostic.jump({ count = 1, float = true }) end, opts)
+  vim.keymap.set("n", "<C-l>", function() vim.diagnostic.jump({ count = 1, float = true }) end, opts)
   vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
 end
 
@@ -105,8 +107,17 @@ local function start_lsp(bufnr)
 end
 
 vim.api.nvim_create_autocmd("FileType",
-  { callback = function(args) if ft_to_server[vim.bo[args.buf].filetype] then start_lsp(args.buf) end end })
+  {
+    callback = function(args)
+      if ft_to_server[vim.bo[args.buf].filetype]
+      then
+        start_lsp(args.buf)
+      end
+    end
+  })
 
+
+-- Auto format, indent & organize imports
 vim.api.nvim_create_autocmd("BufWritePre", {
   callback = function(args)
     local bufnr = args.buf
