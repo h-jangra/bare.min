@@ -65,7 +65,7 @@ function M.files()
 
   local cmd = string.format('%s | fzf --prompt="Files> " --preview="%s"', find_cmd, preview)
   float_cmd(cmd, function(file)
-    vim.cmd("edit " .. vim.fn.fnameescape(file))
+    vim.api.nvim_cmd({ cmd = "edit", args = { file } }, {})
   end)
 end
 

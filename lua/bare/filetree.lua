@@ -218,7 +218,12 @@ local function create_file()
 
   -- Open file in new split
   vim.schedule(function()
-    vim.cmd("wincmd l") -- Move right from filetree
+    for _, w in ipairs(vim.api.nvim_list_wins()) do
+      if w ~= state.win and vim.api.nvim_win_get_config(w).relative == "" then
+        vim.api.nvim_set_current_win(w)
+        break
+      end
+    end
     vim.cmd("edit " .. vim.fn.fnameescape(path))
   end)
 end

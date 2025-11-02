@@ -22,18 +22,14 @@ vim.schedule(function()
   require("bare.md").setup()
 end)
 
-vim.api.nvim_create_autocmd("FileType", {
-  pattern = { "html", "typst", "markdown", "md" },
-  callback = function() require("bare.preview").setup() end,
-})
-
+require("bare.preview").setup()
 
 vim.api.nvim_create_autocmd({ "BufRead", "BufNewFile" }, {
   callback = function()
     require("bare.marks").setup()
     require("bare.surround").setup()
     require("bare.lsp")
-    require("bare.cmp")
+    require("bare.cmp").setup()
     require("bare.picker")
 
     vim.defer_fn(function()

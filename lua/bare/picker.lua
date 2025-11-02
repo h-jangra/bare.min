@@ -14,7 +14,7 @@
 
 vim.opt.wildmenu = true
 -- vim.opt.wildmode = 'noselect:lastused,full'
-vim.opt.wildmode = 'longest:full,full' -- use this if you want to auto select
+vim.opt.wildmode = 'longest:full,full' -- auto select match
 vim.opt.wildoptions = 'pum'
 vim.opt.wildignorecase = true
 vim.opt.path:append('**')
