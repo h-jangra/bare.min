@@ -1,3 +1,3 @@
 vim.g.mapleader = " "
 
-require("bare")
+require("bare.init")

@@ -71,6 +71,8 @@ M.icons = {
   sass = { icon = "", color = "#cd6799" },
   less = { icon = "", color = "#1d365d" },
   r = { icon = "󰟔", color = "#2266ba" },
+  tex = { icon = "", color = "#61dafb" },
+  qmd = { icon = "󰰜", color = "#0175c2" },
   default = { icon = "󰈤", color = "#6d8086" },
 }
 
