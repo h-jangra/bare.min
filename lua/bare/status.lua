@@ -11,16 +11,19 @@ local modes = {
 
 vim.api.nvim_set_hl(0, "StlText", { fg = "#cdd6f4", bg = "#292c3c" })
 vim.api.nvim_set_hl(0, "StlGit", { fg = "#f9e2af", bg = "#292c3c" })
-vim.api.nvim_set_hl(0, "StlLsp", { fg = "#cba6f7", bg = "#292c3c" })
+vim.api.nvim_set_hl(0, "StlLsp", { fg = "#a6e3a1", bg = "#292c3c" })
+vim.api.nvim_set_hl(0, "StlLspLoading", { fg = "#fab387", bg = "#292c3c" })
 vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#292c3c" })
-vim.api.nvim_set_hl(0, "StlLoading", { fg = "#fab387", bg = "#292c3c" })
 
 local cache = {
   branch = "",
-  lsp = "",
+  lsp_clients = {},
   filepath = "",
   filesize = "",
 }
+
+local lsp_spinners = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
+local spinner_idx = 0
 
 local function update_git_branch()
   if vim.b.gitsigns_head then
@@ -31,9 +34,12 @@ local function update_git_branch()
   end
 end
 
-local function update_lsp_name()
+local function update_lsp_clients()
   local clients = vim.lsp.get_clients({ bufnr = 0 })
-  cache.lsp = (clients[1] and clients[1].name) or ""
+  cache.lsp_clients = {}
+  for _, client in ipairs(clients) do
+    table.insert(cache.lsp_clients, client.name)
+  end
   vim.cmd("redrawstatus")
 end
 
@@ -52,17 +58,19 @@ local function update_file_info()
 end
 
 local function get_lsp_status()
-  local clients = vim.lsp.get_clients({ bufnr = 0 })
-  if #clients == 0 then
+  if #cache.lsp_clients == 0 then
     return ""
   end
 
-  local loading = vim.lsp.status() ~= ""
-  if loading then
-    return "%#StlLoading# 󰪞 "
+  local is_loading = vim.lsp.status() ~= ""
+  if is_loading then
+    spinner_idx = (spinner_idx + 1) % #lsp_spinners
+    return "%#StlLspLoading#" .. lsp_spinners[spinner_idx + 1] .. " initializing "
   end
 
-  return cache.lsp ~= "" and ("%#StlLsp#" .. cache.lsp .. " ") or ""
+  -- Show LSP client names when fully attached
+  local client_names = table.concat(cache.lsp_clients, ", ")
+  return "%#StlLsp#  " .. client_names .. " "
 end
 
 _G.status_line = function()
@@ -80,10 +88,10 @@ _G.status_line = function()
   return table.concat({
     "%#StlMode# ", mode_info.letter, " ",
     "%#StlText# ", filepath, " ",
-    cache.branch ~= "" and ("%#StlGit# " .. cache.branch .. " ") or "",
+    cache.branch ~= "" and ("%#StlGit#  " .. cache.branch .. " ") or "",
     "%=",
     lsp_status,
-    "%#StlText# " .. vim.fn.line("$"), " ",
+    "%#StlText# " .. vim.fn.line(".") .. "/" .. vim.fn.line("$"), " ",
     cache.filesize ~= "" and ("%#StlFile#" .. cache.filesize .. " ") or "",
   })
 end
@@ -92,6 +100,11 @@ vim.o.statusline = "%!v:lua.status_line()"
 
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, { callback = update_file_info })
 vim.api.nvim_create_autocmd({ "BufEnter" }, { callback = update_git_branch })
-vim.api.nvim_create_autocmd({ "LspAttach" }, { callback = update_lsp_name })
-vim.api.nvim_create_autocmd({ "LspProgress" }, { callback = function() vim.cmd("redrawstatus") end })
+vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach" }, { callback = update_lsp_clients })
+vim.api.nvim_create_autocmd({ "LspProgress" }, {
+  callback = function()
+    spinner_idx = (spinner_idx + 1) % #lsp_spinners
+    vim.cmd("redrawstatus")
+  end,
+})
 vim.api.nvim_create_autocmd({ "ModeChanged" }, { callback = function() vim.cmd("redrawstatus") end })

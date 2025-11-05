@@ -1,31 +1,32 @@
 vim.opt.pumheight = 10
 vim.opt.pumwidth = 20
 vim.opt.completeopt = { "menuone", "noselect" }
+vim.opt.shortmess:append("c")
 
 local icons = {
   Text = "󰉿",
   Method = "󰆧",
   Function = "󰊕",
-  Constructor = "",
+  Constructor = "",
   Field = "󰜢",
   Variable = "󰀫",
   Class = "󰠱",
-  Interface = "",
-  Module = "",
+  Interface = "",
+  Module = "󰕳",
   Property = "󰜢",
   Unit = "󰑭",
   Value = "󰎠",
-  Enum = "",
+  Enum = "",
   Keyword = "󰌋",
-  Snippet = "",
+  Snippet = "",
   Color = "󰏘",
   File = "󰈙",
   Reference = "󰈇",
   Folder = "󰉋",
-  EnumMember = "",
+  EnumMember = "",
   Constant = "󰏿",
   Struct = "󰙅",
-  Event = "",
+  Event = "",
   Operator = "󰆕",
   TypeParameter = "󰊄",
 }
@@ -40,7 +41,8 @@ local function format_completion(item)
 end
 
 local debounce_timer = vim.uv.new_timer()
-local debounce_ms = 120
+local debounce_ms = 100
+local is_completing = false
 
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(args)
@@ -55,18 +57,23 @@ vim.api.nvim_create_autocmd("LspAttach", {
 })
 
 local function trigger_completion()
+  if vim.fn.mode() ~= "i" or is_completing then return end
+
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
   local char = line:sub(col, col)
 
-  if char:match("[%w]") and vim.fn.pumvisible() == 0 then
-    vim.lsp.completion.get()
-    vim.defer_fn(function()
-      if vim.fn.pumvisible() == 0 then
-        vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
-      end
-    end, 30)
-  end
+  if not char:match("[%w]") or vim.fn.pumvisible() == 1 then return end
+
+  is_completing = true
+  vim.lsp.completion.get()
+
+  vim.defer_fn(function()
+    if vim.fn.pumvisible() == 0 then
+      vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
+    end
+    is_completing = false
+  end, 20)
 end
 
 vim.api.nvim_create_autocmd("TextChangedI", {
@@ -78,13 +85,28 @@ vim.api.nvim_create_autocmd("TextChangedI", {
   end,
 })
 
+vim.api.nvim_create_autocmd("InsertLeave", {
+  callback = function()
+    if debounce_timer then debounce_timer:stop() end
+    is_completing = false
+  end,
+})
+
 vim.keymap.set("i", "<C-Space>", function()
+  if vim.fn.pumvisible() == 1 then return end
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
   if line:sub(1, col):match("%(") then
     vim.lsp.buf.signature_help()
   else
-    trigger_completion()
+    is_completing = true
+    vim.lsp.completion.get()
+    vim.defer_fn(function()
+      if vim.fn.pumvisible() == 0 then
+        vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
+      end
+      is_completing = false
+    end, 20)
   end
 end, { noremap = true, silent = true })
 
