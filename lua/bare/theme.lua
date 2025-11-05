@@ -111,14 +111,13 @@ function M.setup()
     CurSearch = { bg = colors.peach, fg = colors.crust },
 
     -- Pmenu
-    Pmenu = { bg = colors.crust, fg = colors.text },
-    PmenuSel = { bg = colors.surface0, fg = colors.blue, bold = true, sp = colors.blue, underline = true },
+    Pmenu = { bg = colors.base, fg = colors.text },
+    PmenuSel = { bg = colors.surface0, fg = colors.blue, bold = true, sp = colors.blue },
     PmenuSbar = { bg = colors.base },
     PmenuThumb = { bg = colors.blue },
     PmenuMatch = { fg = colors.peach, bg = colors.none, bold = true, sp = colors.peach },
-    PmenuMatchSel = { fg = colors.peach, bg = colors.none, bold = true, sp = colors.peach, underline = true },
-    PmenuBorder = { fg = colors.surface2, bg = colors.crust },
-    PmenuBorderSel = { fg = colors.blue, bg = colors.crust },
+    PmenuMatchSel = { fg = colors.peach, bg = colors.none, bold = true, sp = colors.peach },
+    PmenuBorder = { fg = colors.teal, bg = colors.base },
 
     -- Diagnostics
     DiagnosticError = { fg = colors.red },

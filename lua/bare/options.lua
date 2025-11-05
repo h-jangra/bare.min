@@ -12,6 +12,7 @@ opt.laststatus = 3
 opt.shortmess:append("IcFsW")
 opt.completeopt = { "menu", "menuone", "noselect" }
 opt.winborder = "rounded"
+opt.pumborder = "rounded"
 
 opt.expandtab = true
 opt.shiftwidth = 2
