@@ -12,7 +12,6 @@ opt.laststatus = 3
 opt.shortmess:append("IcFsW")
 opt.completeopt = { "menu", "menuone", "noselect" }
 opt.winborder = "rounded"
-opt.pumheight = 10
 
 opt.expandtab = true
 opt.shiftwidth = 2
@@ -20,7 +19,7 @@ opt.tabstop = 2
 opt.softtabstop = 2
 opt.smartindent = true
 
-vim.opt.incsearch = true
+opt.incsearch = true
 
 opt.undofile = true
 opt.undodir = vim.fn.stdpath("data") .. "/undodir"

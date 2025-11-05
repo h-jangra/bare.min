@@ -1,7 +1,46 @@
-vim.opt.completeopt = { "menu", "menuone", "noselect", "popup" }
+vim.opt.pumheight = 10
+vim.opt.pumwidth = 20
+vim.opt.completeopt = { "menuone", "noselect" }
+
+local icons = {
+  Text = "󰉿",
+  Method = "󰆧",
+  Function = "󰊕",
+  Constructor = "",
+  Field = "󰜢",
+  Variable = "󰀫",
+  Class = "󰠱",
+  Interface = "",
+  Module = "",
+  Property = "󰜢",
+  Unit = "󰑭",
+  Value = "󰎠",
+  Enum = "",
+  Keyword = "󰌋",
+  Snippet = "",
+  Color = "󰏘",
+  File = "󰈙",
+  Reference = "󰈇",
+  Folder = "󰉋",
+  EnumMember = "",
+  Constant = "󰏿",
+  Struct = "󰙅",
+  Event = "",
+  Operator = "󰆕",
+  TypeParameter = "󰊄",
+}
+
+local function format_completion(item)
+  local kind = vim.lsp.protocol.CompletionItemKind[item.kind] or "Unknown"
+  local label = item.label:gsub("%b()", "")
+  return {
+    abbr = string.format("%s %s", icons[kind] or "?", label),
+    kind = kind,
+  }
+end
 
 local debounce_timer = vim.uv.new_timer()
-local debounce_ms = 150
+local debounce_ms = 120
 
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(args)
@@ -9,11 +48,7 @@ vim.api.nvim_create_autocmd("LspAttach", {
     if client and client:supports_method("textDocument/completion") then
       vim.lsp.completion.enable(true, client.id, args.buf, {
         autotrigger = true,
-        convert = function(item)
-          return {
-            kind = vim.lsp.protocol.CompletionItemKind[item.kind] or "Unknown",
-          }
-        end,
+        convert = format_completion,
       })
     end
   end,
@@ -23,13 +58,14 @@ local function trigger_completion()
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
   local char = line:sub(col, col)
+
   if char:match("[%w]") and vim.fn.pumvisible() == 0 then
     vim.lsp.completion.get()
     vim.defer_fn(function()
       if vim.fn.pumvisible() == 0 then
         vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
       end
-    end, 50)
+    end, 30)
   end
 end
 

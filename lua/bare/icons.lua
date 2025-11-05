@@ -73,6 +73,7 @@ M.icons = {
   r = { icon = "󰟔", color = "#2266ba" },
   tex = { icon = "", color = "#61dafb" },
   qmd = { icon = "󰰜", color = "#0175c2" },
+  log = { icon = "", color = "#51a0cf" },
   default = { icon = "󰈤", color = "#6d8086" },
 }
 
