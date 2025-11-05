@@ -1,4 +1,8 @@
 local timer = vim.uv.new_timer()
+local debounce_ms = 80
+local last_line = ""
+local last_col = 0
+
 vim.opt.completeopt = { "menu", "menuone", "noselect" }
 
 local function show_signature()
@@ -6,12 +10,15 @@ local function show_signature()
 end
 
 local function trigger_completion()
-  vim.lsp.completion.get({ bufnr = 0 })
-  vim.defer_fn(function()
-    if vim.fn.pumvisible() == 0 then
-      vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
-    end
-  end, 50)
+  if vim.fn.pumvisible() == 0 then
+    vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
+  end
+end
+
+local function should_trigger_completion(line, col)
+  return col > 0
+      and line:sub(col, col):match("[%w_]")
+      and (line ~= last_line or col ~= last_col)
 end
 
 vim.api.nvim_create_autocmd("TextChangedI", {
@@ -19,10 +26,11 @@ vim.api.nvim_create_autocmd("TextChangedI", {
     local line = vim.api.nvim_get_current_line()
     local col = vim.api.nvim_win_get_cursor(0)[2]
 
-    if col > 0 and line:sub(col, col):match("[%w_]") then
+    if should_trigger_completion(line, col) then
+      last_line, last_col = line, col
       if timer then
         timer:stop()
-        timer:start(120, 0, vim.schedule_wrap(trigger_completion))
+        timer:start(debounce_ms, 0, vim.schedule_wrap(trigger_completion))
       end
     end
   end,
