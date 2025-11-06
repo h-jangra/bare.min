@@ -91,7 +91,7 @@ _G.status_line = function()
     cache.branch ~= "" and ("%#StlGit#  " .. cache.branch .. " ") or "",
     "%=",
     lsp_status,
-    "%#StlText# " .. vim.fn.line(".") .. "/" .. vim.fn.line("$"), " ",
+    "%#StlText# " .. vim.fn.line("$"), " ",
     cache.filesize ~= "" and ("%#StlFile#" .. cache.filesize .. " ") or "",
   })
 end

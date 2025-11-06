@@ -118,6 +118,7 @@ function M.setup()
     PmenuMatch = { fg = colors.peach, bg = colors.none, bold = true, sp = colors.peach },
     PmenuMatchSel = { fg = colors.peach, bg = colors.none, bold = true, sp = colors.peach },
     PmenuBorder = { fg = colors.teal, bg = colors.base },
+    PmenuShadow = { fg = colors.teal, bg = colors.base },
 
     -- Diagnostics
     DiagnosticError = { fg = colors.red },

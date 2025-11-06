@@ -1,7 +1,8 @@
 vim.opt.pumheight = 10
 vim.opt.pumwidth = 20
-vim.opt.completeopt = { "menuone", "noselect" }
 vim.opt.shortmess:append("c")
+vim.opt.pumborder = "shadow"
+vim.opt.completeopt = { "menuone", "noselect" }
 
 local icons = {
   Text = "󰉿",
@@ -41,8 +42,7 @@ local function format_completion(item)
 end
 
 local debounce_timer = vim.uv.new_timer()
-local debounce_ms = 100
-local is_completing = false
+local debounce_ms = 150
 
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(args)
@@ -57,23 +57,16 @@ vim.api.nvim_create_autocmd("LspAttach", {
 })
 
 local function trigger_completion()
-  if vim.fn.mode() ~= "i" or is_completing then return end
+  if vim.fn.mode() ~= "i" then return end
 
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
-  local char = line:sub(col, col)
 
-  if not char:match("[%w]") or vim.fn.pumvisible() == 1 then return end
+  -- Only trigger on word characters or after specific symbols
+  local char_before = line:sub(col - 1, col - 1)
+  if not char_before:match("[%w_]") then return end
 
-  is_completing = true
   vim.lsp.completion.get()
-
-  vim.defer_fn(function()
-    if vim.fn.pumvisible() == 0 then
-      vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
-    end
-    is_completing = false
-  end, 20)
 end
 
 vim.api.nvim_create_autocmd("TextChangedI", {
@@ -88,25 +81,21 @@ vim.api.nvim_create_autocmd("TextChangedI", {
 vim.api.nvim_create_autocmd("InsertLeave", {
   callback = function()
     if debounce_timer then debounce_timer:stop() end
-    is_completing = false
   end,
 })
 
 vim.keymap.set("i", "<C-Space>", function()
-  if vim.fn.pumvisible() == 1 then return end
+  if vim.fn.pumvisible() == 1 then
+    return vim.keycode("<C-e>")
+  end
+
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
+
   if line:sub(1, col):match("%(") then
     vim.lsp.buf.signature_help()
   else
-    is_completing = true
     vim.lsp.completion.get()
-    vim.defer_fn(function()
-      if vim.fn.pumvisible() == 0 then
-        vim.api.nvim_feedkeys(vim.keycode("<C-x><C-n>"), "n", false)
-      end
-      is_completing = false
-    end, 20)
   end
 end, { noremap = true, silent = true })
 
@@ -115,9 +104,9 @@ vim.keymap.set("i", "<Tab>", function()
     vim.schedule(function() vim.snippet.jump(1) end)
     return ""
   elseif vim.fn.pumvisible() == 1 then
-    return "<C-n>"
+    return vim.keycode("<C-n>")
   else
-    return "<Tab>"
+    return vim.keycode("<Tab>")
   end
 end, { expr = true, silent = true })
 
@@ -126,8 +115,14 @@ vim.keymap.set("i", "<S-Tab>", function()
     vim.schedule(function() vim.snippet.jump(-1) end)
     return ""
   elseif vim.fn.pumvisible() == 1 then
-    return "<C-p>"
+    return vim.keycode("<C-p>")
   else
-    return "<S-Tab>"
+    return vim.keycode("<S-Tab>")
   end
 end, { expr = true, silent = true })
+
+vim.keymap.set("i", "<C-e>", function()
+  if vim.fn.pumvisible() == 1 then
+    vim.api.nvim_feedkeys(vim.keycode("<C-e>"), "n", false)
+  end
+end, { noremap = true, silent = true })
