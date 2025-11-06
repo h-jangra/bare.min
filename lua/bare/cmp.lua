@@ -8,26 +8,26 @@ local icons = {
   Text = "󰉿",
   Method = "󰆧",
   Function = "󰊕",
-  Constructor = "",
+  Constructor = "",
   Field = "󰜢",
   Variable = "󰀫",
   Class = "󰠱",
-  Interface = "",
+  Interface = "",
   Module = "󰕳",
   Property = "󰜢",
   Unit = "󰑭",
   Value = "󰎠",
-  Enum = "",
+  Enum = "",
   Keyword = "󰌋",
-  Snippet = "",
+  Snippet = "",
   Color = "󰏘",
   File = "󰈙",
   Reference = "󰈇",
   Folder = "󰉋",
-  EnumMember = "",
+  EnumMember = "",
   Constant = "󰏿",
   Struct = "󰙅",
-  Event = "",
+  Event = "",
   Operator = "󰆕",
   TypeParameter = "󰊄",
 }
@@ -44,21 +44,25 @@ local function format_completion(item)
 end
 
 local debounce_timer = vim.uv.new_timer()
-local debounce_ms = 100
+local debounce_ms = 150
+local last_trigger_col = nil
 
 local function trigger_completion()
-  if vim.fn.mode() ~= "i" or vim.fn.pumvisible() == 1 then return end
+  if vim.fn.mode() ~= "i" then return end
+
   local line = vim.api.nvim_get_current_line()
-  local col = vim.api.nvim_win_get_cursor(0)[2] + 1
-  local char_before = line:sub(math.max(1, col - 1), col - 1)
+  local col = vim.api.nvim_win_get_cursor(0)[2]
+
+  -- Don't retrigger if we're at the same column (word-completion already active)
+  if last_trigger_col == col and vim.fn.pumvisible() == 1 then return end
+
+  local char_before = line:sub(math.max(1, col), col)
   if not char_before:match("[%w_.:>]") then return end
 
+  last_trigger_col = col
+
+  -- Only use LSP completion
   vim.fn.feedkeys(vim.keycode("<C-x><C-o>"), "n")
-  vim.defer_fn(function()
-    if vim.fn.pumvisible() == 0 then
-      vim.fn.feedkeys(vim.keycode("<C-x><C-n>"), "n")
-    end
-  end, 50)
 end
 
 -- Set up LSP completion
@@ -88,6 +92,7 @@ vim.api.nvim_create_autocmd("InsertLeave", {
     if debounce_timer then
       debounce_timer:stop()
     end
+    last_trigger_col = nil
     if vim.fn.pumvisible() == 1 then
       vim.api.nvim_feedkeys(vim.keycode("<C-e>"), "n", true)
     end
@@ -105,8 +110,7 @@ vim.keymap.set("i", "<C-Space>", function()
   if text_before:match("%([^)]*$") then
     vim.lsp.buf.signature_help()
   else
-    -- Trigger LSP completion
-    vim.fn.feedkeys(vim.keycode("<C-x><C-n>"), "n")
+    vim.fn.feedkeys(vim.keycode("<C-x><C-o>"), "n")
   end
 end, { noremap = true, silent = true, desc = "Trigger LSP completion or signature help" })
 
