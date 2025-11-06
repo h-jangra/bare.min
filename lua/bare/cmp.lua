@@ -32,20 +32,21 @@ local icons = {
   TypeParameter = "󰊄",
 }
 
--- Format completion items
 local function format_completion(item)
   local kind = vim.lsp.protocol.CompletionItemKind[item.kind] or "Unknown"
+  local icon = icons[kind] or "?"
+  local label = item.label:gsub("%s*%b()", ""):gsub("%s*%b<>", "")
   return {
-    abbr = string.format("%s %s", icons[kind] or "?", item.label:gsub("%s*%b()", "")),
+    abbr = string.format("%s %s", icon, label),
     word = item.insertText or item.label,
     kind = kind,
-    menu = item.detail or "",
+    menu = (item.detail or ""):sub(1, 30),
   }
 end
 
 local debounce_timer = vim.uv.new_timer()
-local debounce_ms = 150
-local last_trigger_col = nil
+local debounce_ms = 100
+local last_col = nil
 
 local function trigger_completion()
   if vim.fn.mode() ~= "i" then return end
@@ -53,18 +54,17 @@ local function trigger_completion()
   local line = vim.api.nvim_get_current_line()
   local col = vim.api.nvim_win_get_cursor(0)[2]
 
-  if last_trigger_col == col and vim.fn.pumvisible() == 1 then return end
+  if last_col == col and vim.fn.pumvisible() == 1 then return end
+  last_col = col
 
-  local char_before = line:sub(math.max(1, col), col)
-  if not char_before:match("[%w_.:>]") then return end
-  last_trigger_col = col
+  if col == 0 or not line:sub(col, col):match("[%w_]") then return end
 
   vim.fn.feedkeys(vim.keycode("<C-x><C-o>"), "n")
   vim.defer_fn(function()
     if vim.fn.pumvisible() == 0 then
       vim.fn.feedkeys(vim.keycode("<C-x><C-n>"), "n")
     end
-  end, 50)
+  end, 30)
 end
 
 -- Set up LSP completion
@@ -93,7 +93,7 @@ vim.api.nvim_create_autocmd("InsertLeave", {
     if debounce_timer then
       debounce_timer:stop()
     end
-    last_trigger_col = nil
+    last_col = nil
     if vim.fn.pumvisible() == 1 then
       vim.api.nvim_feedkeys(vim.keycode("<C-e>"), "n", true)
     end
@@ -113,35 +113,26 @@ vim.keymap.set("i", "<C-Space>", function()
   else
     vim.fn.feedkeys(vim.keycode("<C-x><C-o>"), "n")
   end
-end, { noremap = true, silent = true, desc = "Trigger LSP completion or signature help" })
+end, { expr = true, silent = true, desc = "Trigger LSP completion or signature help" })
 
--- Tab completion navigation
 vim.keymap.set("i", "<Tab>", function()
   if vim.fn.pumvisible() == 1 then
     return vim.keycode("<C-n>")
-  elseif vim.snippet and vim.snippet.active and vim.snippet.active({ direction = 1 }) then
-    vim.schedule(function() vim.snippet.jump(1) end)
-    return ""
-  else
-    return vim.keycode("<Tab>")
   end
-end, { expr = true, silent = true, desc = "Next completion or snippet jump" })
+  if vim.snippet and vim.snippet.active({ direction = 1 }) then
+    vim.snippet.jump(1)
+    return ""
+  end
+  return vim.keycode("<Tab>")
+end, { expr = true, silent = true, desc = "Completion or snippet jump" })
 
--- Shift+Tab completion navigation
 vim.keymap.set("i", "<S-Tab>", function()
   if vim.fn.pumvisible() == 1 then
     return vim.keycode("<C-p>")
-  elseif vim.snippet and vim.snippet.active and vim.snippet.active({ direction = -1 }) then
-    vim.schedule(function() vim.snippet.jump(-1) end)
+  end
+  if vim.snippet and vim.snippet.active({ direction = -1 }) then
+    vim.snippet.jump(-1)
     return ""
-  else
-    return vim.keycode("<S-Tab>")
   end
+  return vim.keycode("<S-Tab>")
 end, { expr = true, silent = true, desc = "Previous completion or snippet jump" })
-
--- Close completion menu
-vim.keymap.set("i", "<C-e>", function()
-  if vim.fn.pumvisible() == 1 then
-    return vim.keycode("<C-e>")
-  end
-end, { expr = true, silent = true, desc = "Close completion menu" })
