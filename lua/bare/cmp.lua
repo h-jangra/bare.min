@@ -52,7 +52,9 @@ vim.api.nvim_create_autocmd("LspAttach", {
 
     if client and client:supports_method("textDocument/completion") then
       local chars = {}
-      for i = 32, 126 do table.insert(chars, string.char(i)) end
+      for c in ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.:=>"):gmatch(".") do
+        table.insert(chars, c)
+      end
       client.server_capabilities.completionProvider.triggerCharacters = chars
 
       vim.lsp.completion.enable(true, client.id, args.buf, {
