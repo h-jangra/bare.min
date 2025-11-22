@@ -69,7 +69,7 @@ local function build_tree(path, depth, lines, map, extmarks)
     local is_expanded = state.expanded[item.path]
     local is_selected = state.selected[item.path]
     local icon = get_icon(item.name, item.is_dir, is_expanded)
-    local prefix = is_selected and "▌ " or "  "
+    local prefix = is_selected and "▌" or " "
     local line_text = string.rep("  ", depth) .. prefix .. icon .. item.name
     table.insert(lines, line_text)
     table.insert(map, { path = item.path, is_dir = item.is_dir })
@@ -122,8 +122,8 @@ local function render()
   for i = 2, #lines do lines[i] = "  " .. lines[i] end
 
   for _, extmark in ipairs(extmarks) do
-    extmark.line = extmark.line + 1 -- Account for header line
-    extmark.col = extmark.col + 2   -- Account for the extra "  " prefix
+    extmark.line = extmark.line + 1 -- For header line
+    extmark.col = extmark.col + 2   -- For the extra "  " prefix
     extmark.end_col = extmark.end_col + 2
   end
 

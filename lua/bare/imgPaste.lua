@@ -25,19 +25,10 @@ function M.paste()
   end
 
   local cmd
-  if vim.fn.has('mac') == 1 then
-    if vim.fn.executable('pngpaste') == 0 then
-      print("Error: 'pngpaste' not found. Run 'brew install pngpaste'")
-      return
-    end
-    cmd = "pngpaste " .. vim.fn.shellescape(image_path)
-  elseif vim.fn.has('win32') == 1 then
-    cmd =
-        "powershell -NoProfile -Command \"Add-Type -AssemblyName System.Windows.Forms; if ([System.Windows.Forms.Clipboard]::ContainsImage()) { [System.Windows.Forms.Clipboard]::GetImage().Save('" ..
-        image_path .. "', [System.Drawing.Imaging.ImageFormat]::Png) } else { throw 'No image in clipboard.' }\""
-  elseif vim.fn.has('unix') == 1 then
+  if vim.fn.has('unix') == 1 then
     if os.getenv('WAYLAND_DISPLAY') and vim.fn.executable('wl-paste') == 1 then
       cmd = "wl-paste -t image/png > " .. vim.fn.shellescape(image_path)
+      -- cmd = "wl-paste -t image/bmp | convert bmp:- " .. vim.fn.shellescape(image_path)
     elseif vim.fn.executable('xclip') == 1 then
       cmd = "xclip -selection clipboard -t image/png -o > " .. vim.fn.shellescape(image_path)
     else

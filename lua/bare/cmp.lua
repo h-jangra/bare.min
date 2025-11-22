@@ -1,6 +1,4 @@
 vim.opt.pumheight = 12
-vim.opt.pumblend = 7
-vim.opt.winblend = 7
 vim.opt.shortmess:append("c")
 vim.opt.complete = ".,w,b,u"
 vim.opt.completeopt = { "menuone", "noselect" }

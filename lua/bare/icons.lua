@@ -79,57 +79,18 @@ M.icons = {
   default = { icon = "󰈤", color = "#6d8086" },
 }
 
-local hl_cache = {}
-
-local function setup_highlights()
-  for ft, data in pairs(M.icons) do
-    local hl_name = "FileIcon" .. ft:gsub("^%l", string.upper):gsub("[^%w]", "")
-
-    vim.api.nvim_set_hl(0, hl_name, { fg = data.color, bold = true })
-
-    hl_cache[ft] = hl_name
-  end
-end
-
-setup_highlights()
-
-vim.api.nvim_create_autocmd("ColorScheme", {
-  callback = function()
-    setup_highlights()
-  end,
-})
-
-function M.get(ft)
-  local data = M.icons[ft] or M.icons.default
-  local hl = hl_cache[ft] or hl_cache.default
-  return data.icon, hl
-end
-
 function M.get_icon(ft)
   local data = M.icons[ft] or M.icons.default
   return data.icon
 end
 
 function M.get_hl(ft)
-  return hl_cache[ft] or hl_cache.default
-end
-
-function M.get_colored(ft)
-  local icon, hl = M.get(ft)
-  return string.format("%%#%s#%s%%*", hl, icon)
-end
-
-function M.get_color(ft)
   local data = M.icons[ft] or M.icons.default
-  return data.color
-end
-
-function M.add(ft, icon, color)
-  M.icons[ft] = { icon = icon, color = color }
-
   local hl_name = "FileIcon" .. ft:gsub("^%l", string.upper):gsub("[^%w]", "")
-  vim.api.nvim_set_hl(0, hl_name, { fg = color, bold = true })
-  hl_cache[ft] = hl_name
+
+  vim.api.nvim_set_hl(0, hl_name, { fg = data.color, bold = true })
+
+  return hl_name
 end
 
 return M

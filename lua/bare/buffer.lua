@@ -42,7 +42,7 @@ function _G.winbar_buffers()
       table.insert(parts,
         string.format("%%%d@v:lua.goto_buf@%%#%s# %s %s %%X%%#Normal#",
           b, group,
-          icons.get(vim.bo[b].filetype) or "󰈤",
+          icons.get_icon(vim.bo[b].filetype) or "󰈤",
           bufname(b)
         )
       )

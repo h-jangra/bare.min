@@ -1,4 +1,3 @@
--- Requires fzf and ripgrep
 local M = {}
 
 local function has(cmd)
@@ -10,8 +9,6 @@ local function float_cmd(cmd, on_select)
   local buf = vim.api.nvim_create_buf(false, true)
   local width, height = math.floor(vim.o.columns * 0.8), math.floor(vim.o.lines * 0.6)
 
-
-
   local win = vim.api.nvim_open_win(buf, true, {
     relative = "editor",
     style = "minimal",
@@ -21,15 +18,6 @@ local function float_cmd(cmd, on_select)
     row = math.floor((vim.o.lines - height) / 3),
     col = math.floor((vim.o.columns - width) / 2),
   })
-
-  local normal_hl = vim.api.nvim_get_hl(0, { name = 'Normal' })
-  local float_hl = vim.api.nvim_get_hl(0, { name = 'Comment' })
-
-  local ns = vim.api.nvim_create_namespace("fzf_float_" .. tostring(win))
-  vim.api.nvim_win_set_hl_ns(win, ns)
-
-  vim.api.nvim_set_hl(ns, 'NormalFloat', { bg = normal_hl.bg })
-  vim.api.nvim_set_hl(ns, 'FloatBorder', { bg = normal_hl.bg, fg = float_hl.fg })
 
   vim.bo[buf].bufhidden = "wipe"
 
@@ -53,19 +41,9 @@ local function float_cmd(cmd, on_select)
 end
 
 function M.files()
-  if not has("fzf") then return end
-
-  local find_cmd = has("rg")
-      and "rg --files --hidden --follow --glob '!.git/*' --glob '!**/*.png'"
-      or "find . -type f -not -path '*/.git/*'"
-
-  local preview = has("bat")
-      and "bat --style=numbers --color=always --line-range :500 {}"
-      or "cat {}"
-
-  local cmd = string.format('%s | fzf --prompt="Files> " --preview="%s"', find_cmd, preview)
+  local cmd = "fzf --prompt='Files> '"
   float_cmd(cmd, function(file)
-    vim.api.nvim_cmd({ cmd = "edit", args = { file } }, {})
+    vim.cmd("edit " .. vim.fn.fnameescape(file))
   end)
 end
 
