@@ -1,10 +1,10 @@
-vim.opt.pumheight = 15
-vim.opt.pumwidth = 25
-vim.opt.shortmess:append("c") -- Hide redundant completion messages
-vim.opt.pumblend = 10
-vim.opt.winblend = 10
+vim.opt.pumheight = 12
+vim.opt.pumblend = 7
+vim.opt.winblend = 7
+vim.opt.shortmess:append("c")
+vim.opt.complete = ".,w,b,u"
+vim.opt.completeopt = { "menuone", "noselect" }
 vim.opt.pumborder = "rounded"
-vim.opt.completeopt = { "menuone", "noselect", "noinsert", "preview" }
 
 local icons = {
   Text          = "󰉿",
@@ -34,8 +34,6 @@ local icons = {
   TypeParameter = "󰊄",
 }
 
-local debounce_timer = vim.uv.new_timer()
-local last_col = nil
 
 local function format_completion(item)
   local kind = vim.lsp.protocol.CompletionItemKind[item.kind] or "Unknown"
@@ -48,47 +46,21 @@ local function format_completion(item)
   }
 end
 
-local function trigger_completion()
-  if vim.fn.mode() ~= "i" or vim.fn.pumvisible() == 1 then return end
-  local col = vim.api.nvim_win_get_cursor(0)[2]
-  if last_col == col then return end
-
-  local line = vim.api.nvim_get_current_line()
-  if not line:sub(math.max(1, col), col):match("[%w_.:>-]") then return end
-
-  last_col = col
-  vim.fn.feedkeys(vim.keycode("<C-x><C-o>"), "n")
-  vim.defer_fn(function()
-    if vim.fn.pumvisible() == 0 then
-      vim.fn.feedkeys(vim.keycode("<C-x><C-n>"), "n")
-    end
-  end, 30)
-end
-
 vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(args)
     local client = vim.lsp.get_client_by_id(args.data.client_id)
+    if not client then return end
+
+
     if client and client:supports_method("textDocument/completion") then
-      vim.lsp.completion.enable(true, client.id, args.buf, { convert = format_completion })
-    end
-  end,
-})
+      local chars = {}
+      for i = 32, 126 do table.insert(chars, string.char(i)) end
+      client.server_capabilities.completionProvider.triggerCharacters = chars
 
-vim.api.nvim_create_autocmd("TextChangedI", {
-  callback = function()
-    if debounce_timer then
-      debounce_timer:stop()
-      debounce_timer:start(100, 0, vim.schedule_wrap(trigger_completion))
-    end
-  end,
-})
-
-vim.api.nvim_create_autocmd("InsertLeave", {
-  callback = function()
-    if debounce_timer then debounce_timer:stop() end
-    last_col = nil
-    if vim.fn.pumvisible() == 1 then
-      vim.api.nvim_feedkeys(vim.keycode("<C-e>"), "n", true)
+      vim.lsp.completion.enable(true, client.id, args.buf, {
+        autotrigger = true,
+        convert = format_completion,
+      })
     end
   end,
 })
@@ -124,15 +96,3 @@ vim.keymap.set("i", "<S-Tab>", function()
     return "<S-Tab>"
   end
 end, { expr = true, silent = true })
-
-vim.api.nvim_create_autocmd("TextChangedI", {
-  callback = function()
-    local line = vim.api.nvim_get_current_line()
-    local col = vim.api.nvim_win_get_cursor(0)[2]
-    if line:sub(col, col) == "(" then
-      vim.defer_fn(function()
-        if vim.fn.mode() == "i" then vim.lsp.buf.signature_help() end
-      end, 30)
-    end
-  end,
-})
