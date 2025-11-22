@@ -27,10 +27,9 @@ end
 
 local function update_lsp_clients()
   cache.lsp_clients = {}
-  for _, client in ipairs(vim.lsp.get_clients()) do
-    if client.attached_buffers[vim.api.nvim_get_current_buf()] then
-      table.insert(cache.lsp_clients, client.name)
-    end
+  local buf_clients = vim.lsp.get_clients({ bufnr = vim.api.nvim_get_current_buf() })
+  for _, client in ipairs(buf_clients) do
+    table.insert(cache.lsp_clients, client.name)
   end
   vim.cmd("redrawstatus")
 end
@@ -83,7 +82,7 @@ vim.o.statusline = "%!v:lua.status_line()"
 
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, { callback = update_file_info })
 vim.api.nvim_create_autocmd("BufEnter", { callback = update_git_branch })
-vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach", }, { callback = update_lsp_clients })
+vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach", "BufEnter" }, { callback = update_lsp_clients })
 vim.api.nvim_create_autocmd("LspProgress", {
   callback = function()
     spinner_idx = (spinner_idx % #lsp_spinners) + 1; vim.cmd("redrawstatus")

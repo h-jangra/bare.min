@@ -112,10 +112,25 @@ local function setup_highlights()
   vim.api.nvim_set_hl(0, "FileTreeFolderCollapsed", { fg = folder_icons.collapsed.color, bold = true })
 end
 
+local function get_item()
+  if not state.win or not vim.api.nvim_win_is_valid(state.win) then return end
+  local row = vim.api.nvim_win_get_cursor(state.win)[1]
+  return row > 1 and state.line_to_path[row - 1]
+end
+
 local function render()
   if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then return end
 
   setup_highlights()
+
+  -- Store current item path before rendering
+  local current_path = nil
+  if state.win and vim.api.nvim_win_is_valid(state.win) then
+    local item = get_item()
+    if item then
+      current_path = item.path
+    end
+  end
 
   local lines, map, extmarks = build_tree(state.root or vim.fn.getcwd(), 0)
   table.insert(lines, 1, "  " .. state.root .. "/" .. (state.show_hidden and "" or " 󱞞"))
@@ -134,7 +149,6 @@ local function render()
 
   vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
 
-  -- Apply extmarks for highlighting
   local ns = vim.api.nvim_create_namespace("filetree")
   for _, extmark in ipairs(extmarks) do
     vim.api.nvim_buf_set_extmark(
@@ -151,15 +165,16 @@ local function render()
   end
 
   vim.bo[state.buf].modifiable = false
-  if state.win and vim.api.nvim_win_is_valid(state.win) then
-    pcall(vim.api.nvim_win_set_cursor, state.win, state.last_cursor or { 2, 0 })
-  end
-end
 
-local function get_item()
-  if not state.win or not vim.api.nvim_win_is_valid(state.win) then return end
-  local row = vim.api.nvim_win_get_cursor(state.win)[1]
-  return row > 1 and state.line_to_path[row - 1]
+  -- Restore cursor to the same item by path
+  if current_path and state.win and vim.api.nvim_win_is_valid(state.win) then
+    for i, item in ipairs(state.line_to_path) do
+      if item.path == current_path then
+        vim.api.nvim_win_set_cursor(state.win, { i + 1, 0 })
+        break
+      end
+    end
+  end
 end
 
 local function toggle_or_open()
@@ -167,7 +182,6 @@ local function toggle_or_open()
   if not item then return end
   if item.is_dir then
     state.expanded[item.path] = not state.expanded[item.path]
-    state.last_cursor = vim.api.nvim_win_get_cursor(state.win)
     render()
   else
     local win = vim.api.nvim_get_current_win()
@@ -201,7 +215,6 @@ local function collapse()
       end
     end
   end
-  state.last_cursor = vim.api.nvim_win_get_cursor(state.win)
   render()
 end
 

@@ -1,156 +1,119 @@
 --[[
 Keymaps:
-- Visual mode `sa`: Surround the selected text with a chosen character.
-- Normal mode `sa`: Surround the word under the cursor with a chosen character.
-- Normal mode `sd`: Delete surrounding characters around the cursor.
-- Normal mode `sc`: Change surrounding characters around the cursor.
-- Normal mode `sr`: Alias for sc.
+  - Visual mode `sa`: Surround the selected text with a chosen character.
+  - Normal mode `sa`: Surround the word under the cursor with a chosen character.
+  - Normal mode `sd`: Delete surrounding characters around the cursor.
+  - Normal mode `sc`: Change surrounding characters around the cursor.
+  - Normal mode `sr`: Alias for sc.
 --]]
 
 local M = {}
 M.pairs = { ["("] = ")", ["["] = "]", ["{"] = "}", ['"'] = '"', ["'"] = "'", ["<"] = ">", ["`"] = "`" }
 
--- Reverse lookup for closing chars
-local function get_pair(char)
-  return M.pairs[char] or char
-end
+local function get_pair(c) return M.pairs[c] or c end
 
-local function find_surround()
-  local line, col = vim.api.nvim_get_current_line(), vim.fn.col(".")
+local function find_surround(c)
+  local line = vim.api.nvim_get_current_line()
+  local col = vim.fn.col(".")
+  local pair = get_pair(c)
 
-  -- Search backwards for opening char
+  local left = nil
   for i = col - 1, 1, -1 do
-    local c = line:sub(i, i)
-    local right = M.pairs[c]
-    if right then
-      -- Search forwards for closing char
-      for j = col, #line do
-        if line:sub(j, j) == right then
-          return i, j, c, right
-        end
-      end
+    if line:sub(i, i) == c then
+      left = i
+      break
     end
   end
+
+  if not left then return nil end
+
+  local right = nil
+  for i = #line, col, -1 do
+    if line:sub(i, i) == pair then
+      right = i
+      break
+    end
+  end
+
+  return left, right
 end
 
-local function get_word_range()
+local function get_word()
   local line = vim.api.nvim_get_current_line()
   local col = vim.fn.col(".")
 
-  if not line:sub(col, col):match("[%w_]") then
-    return nil
-  end
+  if not line:sub(col, col):match("%w") then return nil end
 
-  local start_col = col
-  local end_col = col
+  local s, e = col, col
+  while s > 1 and line:sub(s - 1, s - 1):match("%w") do s = s - 1 end
+  while e < #line and line:sub(e + 1, e + 1):match("%w") do e = e + 1 end
 
-  while start_col > 1 and line:sub(start_col - 1, start_col - 1):match("[%w_]") do
-    start_col = start_col - 1
-  end
-
-  while end_col <= #line and line:sub(end_col, end_col):match("[%w_]") do
-    end_col = end_col + 1
-  end
-
-  return start_col, end_col - 1
+  return s, e
 end
 
-function M.add(left)
-  local right = get_pair(left)
+function M.add(c)
+  local pair = get_pair(c)
+  local s, e = vim.fn.getpos("'<"), vim.fn.getpos("'>")
 
-  vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), 'x', false)
-
-  vim.schedule(function()
-    local s, e = vim.fn.getpos("'<"), vim.fn.getpos("'>")
-    local lines = vim.api.nvim_buf_get_lines(0, s[2] - 1, e[2], false)
-    if #lines == 0 then return end
-
-    if #lines == 1 then
-      lines[1] = lines[1]:sub(1, s[3] - 1) .. left .. lines[1]:sub(s[3], e[3]) .. right .. lines[1]:sub(e[3] + 1)
-    else
-      lines[1] = lines[1]:sub(1, s[3] - 1) .. left .. lines[1]:sub(s[3])
-      lines[#lines] = lines[#lines]:sub(1, e[3]) .. right .. lines[#lines]:sub(e[3] + 1)
+  if s[2] ~= 0 and e[2] ~= 0 then
+    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), 'x', false)
+    vim.schedule(function()
+      local lines = vim.api.nvim_buf_get_lines(0, s[2] - 1, e[2], false)
+      if #lines == 1 then
+        lines[1] = lines[1]:sub(1, s[3] - 1) .. c .. lines[1]:sub(s[3], e[3]) .. pair .. lines[1]:sub(e[3] + 1)
+      else
+        lines[1] = lines[1]:sub(1, s[3] - 1) .. c .. lines[1]:sub(s[3])
+        lines[#lines] = lines[#lines]:sub(1, e[3]) .. pair .. lines[#lines]:sub(e[3] + 1)
+      end
+      vim.api.nvim_buf_set_lines(0, s[2] - 1, e[2], false, lines)
+    end)
+  else
+    local start, end_ = get_word()
+    if not start then
+      vim.notify("Not on a word", vim.log.levels.WARN)
+      return
     end
-
-    vim.api.nvim_buf_set_lines(0, s[2] - 1, e[2], false, lines)
-    vim.cmd('normal! `<')
-  end)
-end
-
-function M.add_word(left)
-  local right = get_pair(left)
-  local start_col, end_col = get_word_range()
-
-  if not start_col then
-    vim.notify("Not on a word", vim.log.levels.WARN)
-    return
-  end
-
-  local line = vim.api.nvim_get_current_line()
-  local row = vim.fn.line(".")
-  local new_line = line:sub(1, start_col - 1) .. left .. line:sub(start_col, end_col) .. right .. line:sub(end_col + 1)
-
-  vim.api.nvim_set_current_line(new_line)
-  vim.fn.cursor(row, start_col)
-end
-
-function M.delete()
-  local l, r = find_surround()
-
-  if l then
     local line = vim.api.nvim_get_current_line()
-    vim.api.nvim_set_current_line(line:sub(1, l - 1) .. line:sub(l + 1, r - 1) .. line:sub(r + 1))
-    return
+    vim.api.nvim_set_current_line(line:sub(1, start - 1) .. c .. line:sub(start, end_) .. pair .. line:sub(end_ + 1))
+    vim.fn.cursor(vim.fn.line("."), start + 1)
   end
-
-  local left = vim.fn.input("Left char: ")
-  if left == "" then return end
-
-  local line = vim.api.nvim_get_current_line()
-  local right = get_pair(left)
-  local s, e = line:find(vim.pesc(left), 1, true), line:find(vim.pesc(right), 1, true)
-
-  if not s or not e then
-    vim.notify("Surround not found", vim.log.levels.WARN)
-    return
-  end
-
-  vim.api.nvim_set_current_line(line:sub(1, s - 1) .. line:sub(s + 1, e - 1) .. line:sub(e + 1))
 end
 
-function M.change()
-  local l, r = find_surround()
-
-  if not l then
-    vim.notify("No surround found", vim.log.levels.WARN)
+function M.delete(c)
+  local left, right = find_surround(c)
+  if not left or not right then
+    vim.notify("Not found", vim.log.levels.WARN)
     return
   end
-
-  local left = vim.fn.input("New left: ")
-  if left == "" then return end
-
-  local right = get_pair(left)
   local line = vim.api.nvim_get_current_line()
+  vim.api.nvim_set_current_line(line:sub(1, left - 1) .. line:sub(left + 1, right - 1) .. line:sub(right + 1))
+  vim.fn.cursor(vim.fn.line("."), left)
+end
 
-  vim.api.nvim_set_current_line(line:sub(1, l - 1) .. left .. line:sub(l + 1, r - 1) .. right .. line:sub(r + 1))
+function M.change(c)
+  local left, right = find_surround(c)
+  if not left or not right then
+    vim.notify("Not found", vim.log.levels.WARN)
+    return
+  end
+  local new_c = vim.fn.getcharstr()
+  if new_c == "" then return end
+  local line = vim.api.nvim_get_current_line()
+  vim.api.nvim_set_current_line(line:sub(1, left - 1) ..
+    new_c .. line:sub(left + 1, right - 1) .. get_pair(new_c) .. line:sub(right + 1))
 end
 
 function M.setup()
-  vim.keymap.set('x', 'sa', function()
-    local key = vim.fn.getchar()
-    local char = type(key) == 'number' and vim.fn.nr2char(key) or key
-    M.add(char)
-  end, { noremap = true, silent = true })
-
-  vim.keymap.set('n', 'sa', function()
-    local key = vim.fn.getchar()
-    local char = type(key) == 'number' and vim.fn.nr2char(key) or key
-    M.add_word(char)
-  end, { noremap = true, silent = true })
-
-  vim.keymap.set('n', 'sd', M.delete, { noremap = true, silent = true })
-  vim.keymap.set('n', 'sc', M.change, { noremap = true, silent = true })
-  vim.keymap.set('n', 'sr', M.change, { noremap = true, silent = true })
+  local map = vim.keymap.set
+  local get_char = function()
+    local k = vim.fn.getchar()
+    return type(k) == 'number' and vim.fn.nr2char(k) or k
+  end
+  map('x', 'sa', function() M.add(get_char()) end, {})
+  map('n', 'sa', function() M.add(get_char()) end, {})
+  map('n', 'sd', function() M.delete(get_char()) end, {})
+  map('n', 'sc', function() M.change(get_char()) end, {})
+  map('n', 'sr', function() M.change(get_char()) end, {})
 end
 
 return M

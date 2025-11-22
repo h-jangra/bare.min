@@ -1,22 +1,7 @@
 local servers = {
-  lua_ls = {
-    cmd = { "lua-language-server" },
-    ft = { "lua" },
-    settings = {
-      Lua = {
-        runtime = { version = "LuaJIT" },
-        diagnostics = { globals = { "vim" } },
-        workspace = { library = vim.api.nvim_get_runtime_file("", true), checkThirdParty = false },
-        telemetry = { enable = false }
-      }
-    }
-  },
+  lua_ls = { cmd = { "lua-language-server" }, ft = { "lua" }, settings = { Lua = { runtime = { version = "LuaJIT" }, diagnostics = { globals = { "vim" } }, workspace = { library = vim.api.nvim_get_runtime_file("", true) }, telemetry = { enable = false } } } },
   pyright = { cmd = { "pyright-langserver", "--stdio" }, ft = { "python" } },
-  ts_ls =
-  {
-    cmd = { "typescript-language-server", "--stdio" },
-    ft = { "javascript", "javascriptreact", "typescript", "typescriptreact" }
-  },
+  ts_ls = { cmd = { "typescript-language-server", "--stdio" }, ft = { "javascript", "javascriptreact", "typescript", "typescriptreact" } },
   rust_analyzer = { cmd = { "rust-analyzer" }, ft = { "rust" } },
   gopls = { cmd = { "gopls" }, ft = { "go", "gomod", "gowork", "gotmpl" } },
   clangd = { cmd = { "clangd" }, ft = { "c", "cpp", "objc", "objcpp" } },
@@ -24,17 +9,8 @@ local servers = {
   cssls = { cmd = { "vscode-css-language-server", "--stdio" }, ft = { "css", "scss", "less" } },
   jsonls = { cmd = { "vscode-json-language-server", "--stdio" }, ft = { "json" } },
   taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
-  bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bashrc", "sh" } },
-  tinymist =
-  {
-    cmd = { "tinymist", "lsp" },
-    ft = { "typst" },
-    settings = {
-      exportPdf = 'onType',
-      formatterMode = 'typstyle',
-      preview = { background = { enabled = true, args = { "--data-plane-host=127.0.0.1:23635" } } }
-    }
-  },
+  bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
+  tinymist = { cmd = { "tinymist", "lsp" }, ft = { "typst" }, settings = { exportPdf = 'onType', formatterMode = 'typstyle' } },
 }
 
 local ft_to_server = {}
@@ -42,9 +18,7 @@ for name, cfg in pairs(servers) do
   for _, ft in ipairs(cfg.ft) do ft_to_server[ft] = name end
 end
 
-local function on_attach(client, bufnr)
-  vim.lsp.completion.enable(true, client.id, bufnr, { autotrigger = true })
-
+local function on_attach(_, bufnr)
   local opts = { buffer = bufnr }
   vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
   vim.keymap.set({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts)
@@ -54,40 +28,20 @@ local function on_attach(client, bufnr)
   vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
 end
 
-local function get_capabilities()
+local function get_cap()
   local cap = vim.lsp.protocol.make_client_capabilities()
-  cap.textDocument.completion.completionItem =
-  {
-    snippetSupport = true,
-    commitCharactersSupport = true,
-    deprecatedSupport = true,
-    preselectSupport = true,
-    insertReplaceSupport = true
-  }
-  cap.textDocument.codeAction = {
-    codeActionLiteralSupport = {
-      codeActionKind = {
-        valueSet = {
-          "",
-          "quickfix",
-          "refactor",
-          "refactor.extract",
-          "refactor.inline",
-          "refactor.rewrite",
-          "source",
-          "source.organizeImports",
-          "source.fixAll"
-        }
-      }
-    }
+  cap.textDocument.completion.completionItem = { snippetSupport = true, commitCharactersSupport = true, deprecatedSupport = true, preselectSupport = true, insertReplaceSupport = true }
+  cap.textDocument.codeAction.codeActionLiteralSupport = {
+    codeActionKind = {
+      valueSet = { "", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports", "source.fixAll" } }
   }
   return cap
 end
 
-local root_patterns = { '.git', 'package.json', 'Cargo.toml', 'go.mod', 'pyproject.toml', 'setup.py' }
 local function find_root(bufnr)
   local path = vim.api.nvim_buf_get_name(bufnr)
-  local files = vim.fs.find(root_patterns, { path = path, upward = true })
+  local files = vim.fs.find({ '.git', 'package.json', 'Cargo.toml', 'go.mod', 'pyproject.toml', 'setup.py' },
+    { path = path, upward = true })
   return files[1] and vim.fs.dirname(files[1]) or vim.fn.getcwd()
 end
 
@@ -102,38 +56,29 @@ local function start_lsp(bufnr)
     root_dir = find_root(bufnr),
     settings = cfg.settings,
     on_attach = on_attach,
-    capabilities = get_capabilities()
+    capabilities = get_cap()
   })
 end
 
-vim.api.nvim_create_autocmd("FileType",
-  {
-    callback = function(args)
-      if ft_to_server[vim.bo[args.buf].filetype]
-      then
-        start_lsp(args.buf)
-      end
-    end
-  })
+vim.api.nvim_create_autocmd("FileType", {
+  callback = function(args)
+    if ft_to_server[vim.bo[args.buf].filetype] then start_lsp(args.buf) end
+  end
+})
 
-
--- Auto format, indent & organize imports
 vim.api.nvim_create_autocmd("BufWritePre", {
   callback = function(args)
     local bufnr = args.buf
+    local clients = vim.lsp.get_clients({ bufnr = bufnr })
+    if not clients[1] then return end
+
     local view = vim.fn.winsaveview()
 
-    for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
+    for _, client in ipairs(clients) do
       if client:supports_method("textDocument/codeAction") then
-        local params =
-        {
+        local params = {
           textDocument = vim.lsp.util.make_text_document_params(bufnr),
-          range =
-          {
-            start = { line = 0, character = 0 },
-            ["end"] =
-            { line = vim.api.nvim_buf_line_count(bufnr), character = 0 }
-          },
+          range = { start = { line = 0, character = 0 }, ["end"] = { line = vim.api.nvim_buf_line_count(bufnr), character = 0 } },
           context = { only = { "source.organizeImports" } }
         }
         local result = vim.lsp.buf_request_sync(bufnr, "textDocument/codeAction", params, 1000)
@@ -144,10 +89,11 @@ vim.api.nvim_create_autocmd("BufWritePre", {
             end
           end
         end
+        break
       end
     end
 
-    if vim.lsp.get_clients({ bufnr = bufnr })[1] and vim.lsp.get_clients({ bufnr = bufnr })[1]:supports_method("textDocument/formatting") then
+    if clients[1]:supports_method("textDocument/formatting") then
       vim.lsp.buf.format({ async = false, timeout_ms = 1000 })
     else
       vim.cmd("silent normal! gg=G")
