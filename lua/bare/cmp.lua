@@ -96,3 +96,16 @@ vim.keymap.set("i", "<S-Tab>", function()
     return "<S-Tab>"
   end
 end, { expr = true, silent = true })
+
+-- vim.api.nvim_create_autocmd("InsertCharPre", {
+--   callback = function()
+--     local col = vim.fn.col('.')
+--     local ch = vim.v.char
+--     if ch:match("[%w_.:]") then
+--       vim.defer_fn(function()
+--         vim.fn.feedkeys(vim.keycode("<C-x><C-o>"), "n")
+--       end, 1)
+--     end
+--   end,
+-- })
+
