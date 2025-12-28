@@ -27,8 +27,8 @@ function M.paste()
   local cmd
   if vim.fn.has('unix') == 1 then
     if os.getenv('WAYLAND_DISPLAY') and vim.fn.executable('wl-paste') == 1 then
-      cmd = "wl-paste -t image/png > " .. vim.fn.shellescape(image_path)
-      -- cmd = "wl-paste -t image/bmp | convert bmp:- " .. vim.fn.shellescape(image_path)
+      -- cmd = "wl-paste -t image/png > " .. vim.fn.shellescape(image_path)
+      cmd = "wl-paste -t image/bmp | convert bmp:- " .. vim.fn.shellescape(image_path)
     elseif vim.fn.executable('xclip') == 1 then
       cmd = "xclip -selection clipboard -t image/png -o > " .. vim.fn.shellescape(image_path)
     else

@@ -6,6 +6,7 @@ local M, state = {}, {
   typst_jobs = {},
   md_job = nil,
   md_port = 6419,
+  typst_opened = false
 }
 
 local function open_browser(url)
@@ -43,20 +44,26 @@ function M.stop_html()
   end
 end
 
-function M.start_typst()
+function M.start_typst(open_url)
   local file = vim.fn.expand("%:p")
   if not file:match("%.typ$") then return end
 
-  if state.typst_jobs[file] then vim.fn.jobstop(state.typst_jobs[file]) end
-  state.typst_jobs[file] = vim.fn.jobstart({ "tinymist", "preview", file },
+  if state.typst_jobs._main then vim.fn.jobstop(state.typst_jobs._main) end
+  state.typst_jobs._main = vim.fn.jobstart({ "tinymist", "preview", file },
     { cwd = vim.fn.fnamemodify(file, ":h") })
 
-  open_browser("http://127.0.0.1:23625")
+  if open_url and not state.typst_opened then
+    state.typst_opened = true
+    vim.defer_fn(function()
+      open_browser("http://127.0.0.1:23625")
+    end, 800)
+  end
 end
 
 function M.stop_typst()
   for _, job in pairs(state.typst_jobs) do vim.fn.jobstop(job) end
   state.typst_jobs = {}
+  state.typst_opened = false
 end
 
 function M.start_md(port)
@@ -93,7 +100,9 @@ function M.setup(opts)
       local ft = vim.bo.filetype
 
       if ft == "typst" then
-        vim.api.nvim_buf_create_user_command(0, "PreviewTypst", M.start_typst, {})
+        vim.api.nvim_buf_create_user_command(0, "PreviewTypst", function()
+          M.start_typst(true)
+        end, {})
       elseif ft == "markdown" then
         vim.api.nvim_buf_create_user_command(0, "PreviewMarkdown", function(cmd)
           M.start_md(tonumber(cmd.args) or nil)
@@ -104,6 +113,12 @@ function M.setup(opts)
         M.start_html(tonumber(cmd.args) or nil)
       end, { nargs = "?" })
     end
+  })
+  vim.api.nvim_create_autocmd("BufWritePost", {
+    pattern = "*.typ",
+    callback = function()
+      M.start_typst(false)
+    end,
   })
 
   vim.api.nvim_create_user_command("PreviewStop", M.stop, {})

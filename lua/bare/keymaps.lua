@@ -37,7 +37,7 @@ map("v", "<A-j>", ":m '>+1<cr>gv=gv", opts)
 map("v", "<A-k>", ":m '<-2<cr>gv=gv", opts)
 
 -- Delete/change (don't yank)
-map("v", "x", '"_x', opts)
+-- map("v", "x", '"_x', opts)
 map("v", "c", '"_c', opts)
 map("x", "c", '"_c', opts)
 

@@ -1,16 +1,17 @@
 local servers = {
-  lua_ls = { cmd = { "lua-language-server" }, ft = { "lua" }, settings = { Lua = { runtime = { version = "LuaJIT" }, diagnostics = { globals = { "vim" } }, workspace = { library = vim.api.nvim_get_runtime_file("", true) }, telemetry = { enable = false } } } },
+  -- lua_ls = { cmd = { "lua-language-server" }, ft = { "lua" }, settings = { Lua = { runtime = { version = "LuaJIT" }, diagnostics = { globals = { "vim" } }, workspace = { library = vim.api.nvim_get_runtime_file("", true) }, telemetry = { enable = false } } } },
   pyright = { cmd = { "pyright-langserver", "--stdio" }, ft = { "python" } },
   ts_ls = { cmd = { "typescript-language-server", "--stdio" }, ft = { "javascript", "javascriptreact", "typescript", "typescriptreact" } },
   rust_analyzer = { cmd = { "rust-analyzer" }, ft = { "rust" } },
   gopls = { cmd = { "gopls" }, ft = { "go", "gomod", "gowork", "gotmpl" } },
-  clangd = { cmd = { "clangd" }, ft = { "c", "cpp", "objc", "objcpp" } },
-  html = { cmd = { "vscode-html-language-server", "--stdio" }, ft = { "html" } },
-  cssls = { cmd = { "vscode-css-language-server", "--stdio" }, ft = { "css", "scss", "less" } },
-  jsonls = { cmd = { "vscode-json-language-server", "--stdio" }, ft = { "json" } },
-  taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
-  bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
+  -- clangd = { cmd = { "clangd" }, ft = { "c", "cpp", "objc", "objcpp" } },
+  -- html = { cmd = { "vscode-html-language-server", "--stdio" }, ft = { "html" } },
+  -- cssls = { cmd = { "vscode-css-language-server", "--stdio" }, ft = { "css", "scss", "less" } },
+  -- jsonls = { cmd = { "vscode-json-language-server", "--stdio" }, ft = { "json" } },
+  -- taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
+  -- bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
   tinymist = { cmd = { "tinymist", "lsp" }, ft = { "typst" }, settings = { exportPdf = 'onType', formatterMode = 'typstyle' } },
+  sql = { cmd = { "sql-language-server", "up", "--method", "stdio" }, ft = { "sql" }, },
 }
 
 local ft_to_server = {}
