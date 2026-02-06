@@ -13,7 +13,7 @@ Or load a single module: `require("bare.module")`
 ## Features
 
 | Module            | Description                                                               |
-|-------------------+---------------------------------------------------------------------------|
+|-------------------|---------------------------------------------------------------------------|
 | `bare.buffer`     | Enhanced buffer management.                                               |
 | `bare.cmp`        | Native completion using LSP setup.                                        |
 | `bare.filetree`   | File explorer integration.                                                |

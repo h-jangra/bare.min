@@ -48,10 +48,9 @@ function M.start_typst()
   if not file:match("%.typ$") then return end
 
   if state.typst_jobs[file] then vim.fn.jobstop(state.typst_jobs[file]) end
-  state.typst_jobs[file] = vim.fn.jobstart({ "tinymist", "preview", file },
+  state.typst_jobs[file] = vim.fn.jobstart({ "tinymist", "preview", file, "--open"},
     { cwd = vim.fn.fnamemodify(file, ":h") })
 
-  open_browser("http://127.0.0.1:23625")
 end
 
 function M.stop_typst()
