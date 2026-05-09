@@ -54,8 +54,13 @@ end
 
 local function update()
   local cfg = vim.api.nvim_win_get_config(0)
-  if cfg.relative ~= "" then
-    vim.wo.winbar = nil; return
+
+  if cfg.relative ~= ""
+      or vim.bo.filetype == "filetree"
+      or vim.bo.buftype ~= ""
+  then
+    vim.wo.winbar = nil
+    return
   end
 
   vim.wo.winbar = (real_bufs() > 1)

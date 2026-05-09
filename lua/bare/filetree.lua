@@ -20,6 +20,7 @@ local state = {
   show_hidden = false,
   clipboard = nil,
   selected = {},
+  git = {},
 }
 local has_icons, icons = pcall(require, "bare.icons")
 local folder_icons = {
@@ -70,11 +71,27 @@ local function build_tree(path, depth, lines, map, extmarks)
     local is_selected = state.selected[item.path]
     local icon = get_icon(item.name, item.is_dir, is_expanded)
     local prefix = is_selected and "▌" or " "
-    local line_text = string.rep("  ", depth) .. prefix .. icon .. item.name
+
+    local git = state.git[item.path]
+    local git_icon = "  "
+
+    if git then
+      if git:match("M") then
+        git_icon = "M "
+      elseif git:match("A") then
+        git_icon = "A "
+      elseif git:match("%?%?") then
+        git_icon = "● "
+      elseif git:match("D") then
+        git_icon = "D "
+      end
+    end
+
+    local line_text = string.rep("  ", depth) .. prefix .. git_icon .. icon .. item.name
     table.insert(lines, line_text)
     table.insert(map, { path = item.path, is_dir = item.is_dir })
 
-    local indent_len = depth * 2
+    local indent_len = depth * 2 + 2
     local prefix_len = #prefix
     local icon_len = #icon
 
@@ -118,6 +135,31 @@ local function get_item()
   return row > 1 and state.line_to_path[row - 1]
 end
 
+local function update_git_status()
+  local root = state.root or vim.fn.getcwd()
+
+  if vim.fn.isdirectory(root .. "/.git") == 0 then
+    state.git = {}
+    return
+  end
+
+  local result = vim.system(
+    { "git", "-C", root, "status", "--porcelain" },
+    { text = true }
+  ):wait()
+
+  local git = {}
+
+  for line in (result.stdout or ""):gmatch("[^\r\n]+") do
+    local status = line:sub(1, 2)
+    local file = line:sub(4)
+
+    git[root .. "/" .. file] = status
+  end
+
+  state.git = git
+end
+
 local function render()
   if not state.buf or not vim.api.nvim_buf_is_valid(state.buf) then return end
 
@@ -132,8 +174,10 @@ local function render()
     end
   end
 
+  update_git_status()
+
   local lines, map, extmarks = build_tree(state.root or vim.fn.getcwd(), 0)
-  table.insert(lines, 1, "  " .. state.root .. "/" .. (state.show_hidden and "" or " 󱞞"))
+  table.insert(lines, 1, "  " .. vim.fn.fnamemodify(state.root, ":~") .. "/" .. (state.show_hidden and "" or " 󱞞"))
   for i = 2, #lines do lines[i] = "  " .. lines[i] end
 
   for _, extmark in ipairs(extmarks) do
@@ -437,15 +481,14 @@ end
 local function setup_buffer()
   state.buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(state.buf, "FileTree")
-  local bo      = vim.bo[state.buf]
-  bo.bufhidden  = "wipe"
-  bo.filetype   = "filetree"
-  bo.buftype    = "nofile"
-  bo.swapfile   = false
-  bo.modifiable = false
-  bo.buflisted  = false
-  local opts    = { buffer = state.buf, silent = true, nowait = true }
-  local maps    = {
+  local bo     = vim.bo[state.buf]
+  bo.bufhidden = "wipe"
+  bo.filetype  = "filetree"
+  bo.buftype   = "nofile"
+  bo.swapfile  = false
+  bo.buflisted = false
+  local opts   = { buffer = state.buf, silent = true, nowait = true }
+  local maps   = {
     { "<CR>", toggle_or_open },
     { "l",    toggle_or_open },
     { "h",    collapse },
@@ -479,9 +522,14 @@ function M.open()
     setup_buffer()
   end
   state.root = state.root or vim.fn.getcwd()
-  vim.cmd("topleft 35vsplit")
+
+  local width = math.min(45, math.max(30, math.floor(vim.o.columns * 0.18)))
+  vim.cmd("topleft " .. width .. "vsplit")
+
   state.win = vim.api.nvim_get_current_win()
+
   vim.api.nvim_win_set_buf(state.win, state.buf)
+
   local wo = vim.wo[state.win]
   wo.wrap = false
   wo.cursorline = true
