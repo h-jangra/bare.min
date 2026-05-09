@@ -1,9 +1,33 @@
 local servers = {
   lua_ls = { cmd = { "lua-language-server" }, ft = { "lua" }, settings = { Lua = { runtime = { version = "LuaJIT" }, diagnostics = { globals = { "vim" } }, workspace = { library = vim.api.nvim_get_runtime_file("", true) }, telemetry = { enable = false } } } },
-  pyright = { cmd = { "pyright-langserver", "--stdio" }, ft = { "python" } },
+  pyright = {
+    cmd = { "pyright-langserver", "--stdio" },
+    ft = { "python" },
+    settings = {
+      python = {
+        analysis = {
+          autoImportCompletions = true,
+        },
+      },
+    },
+  },
   ts_ls = { cmd = { "typescript-language-server", "--stdio" }, ft = { "javascript", "javascriptreact", "typescript", "typescriptreact" } },
   rust_analyzer = { cmd = { "rust-analyzer" }, ft = { "rust" } },
-  gopls = { cmd = { "gopls" }, ft = { "go", "gomod", "gowork", "gotmpl" } },
+  gopls = {
+    cmd = { "gopls" },
+    ft = { "go", "gomod", "gowork", "gotmpl" },
+    settings = {
+      gopls = {
+        completeUnimported = true,
+        usePlaceholders = true,
+        analyses = {
+          unusedparams = true,
+        },
+        gofumpt = true,
+        staticcheck = true,
+      },
+    },
+  },
   clangd = { cmd = { "clangd" }, ft = { "c", "cpp", "objc", "objcpp" } },
   html = { cmd = { "vscode-html-language-server", "--stdio" }, ft = { "html" } },
   cssls = { cmd = { "vscode-css-language-server", "--stdio" }, ft = { "css", "scss", "less" } },
@@ -11,7 +35,33 @@ local servers = {
   taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
   bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
   tinymist = { cmd = { "tinymist", "lsp" }, ft = { "typst" }, settings = { exportPdf = 'onType', formatterMode = 'typstyle' } },
-  jdtls = { cmd = { "jdtls", }, ft = { "java" }, },
+  jdtls = {
+    cmd = { "jdtls" },
+    ft = { "java" },
+    settings = {
+      java = {
+        completion = {
+          favoriteStaticMembers = {
+            "org.junit.Assert.*",
+            "org.junit.jupiter.api.Assertions.*",
+            "org.mockito.Mockito.*",
+          },
+          importOrder = {
+            "java",
+            "javax",
+            "com",
+            "org",
+          },
+        },
+        sources = {
+          organizeImports = {
+            starThreshold = 9999,
+            staticStarThreshold = 9999,
+          },
+        },
+      },
+    },
+  },
   tailwindcss = {
     cmd = { "tailwindcss-language-server", "--stdio" },
     ft = {
@@ -32,7 +82,19 @@ for name, cfg in pairs(servers) do
   for _, ft in ipairs(cfg.ft) do ft_to_server[ft] = name end
 end
 
-local function on_attach(_, bufnr)
+local function on_attach(client, bufnr)
+  if client:supports_method("textDocument/documentHighlight") then
+    vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
+      buffer = bufnr,
+      callback = vim.lsp.buf.document_highlight,
+    })
+
+    vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
+      buffer = bufnr,
+      callback = vim.lsp.buf.clear_references,
+    })
+  end
+
   local opts = { buffer = bufnr }
   vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
   vim.keymap.set({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts)
@@ -49,13 +111,22 @@ local function get_cap()
     codeActionKind = {
       valueSet = { "", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports", "source.fixAll" } }
   }
+  cap.textDocument.completion.completionItem.resolveSupport = {
+    properties = {
+      "documentation",
+      "detail",
+      "additionalTextEdits",
+    },
+  }
   return cap
 end
+
+local capabilities = get_cap()
 
 local function find_root(bufnr)
   local path = vim.api.nvim_buf_get_name(bufnr)
   local files = vim.fs.find({ '.git', 'package.json', 'Cargo.toml', 'go.mod', 'pyproject.toml', 'setup.py' },
-    { path = path, upward = true })
+    { path = vim.fs.dirname(path), upward = true })
   return files[1] and vim.fs.dirname(files[1]) or vim.fn.getcwd()
 end
 
@@ -64,13 +135,20 @@ local function start_lsp(bufnr)
   local server_name = ft_to_server[ft]
   if not server_name then return end
   local cfg = servers[server_name]
+
+  for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
+    if client.name == server_name then
+      return
+    end
+  end
+
   vim.lsp.start({
     name = server_name,
     cmd = cfg.cmd,
     root_dir = find_root(bufnr),
     settings = cfg.settings,
     on_attach = on_attach,
-    capabilities = get_cap()
+    capabilities = capabilities
   })
 end
 
@@ -93,13 +171,22 @@ vim.api.nvim_create_autocmd("BufWritePre", {
         local params = {
           textDocument = vim.lsp.util.make_text_document_params(bufnr),
           range = { start = { line = 0, character = 0 }, ["end"] = { line = vim.api.nvim_buf_line_count(bufnr), character = 0 } },
-          context = { only = { "source.organizeImports" } }
+          context = { only = { "source.organizeImports", "source.removeUnusedImports", } }
         }
         local result = vim.lsp.buf_request_sync(bufnr, "textDocument/codeAction", params, 1000)
         if result then
           for _, res in pairs(result) do
             for _, action in pairs(res.result or {}) do
-              if action.edit then vim.lsp.util.apply_workspace_edit(action.edit, client.offset_encoding) end
+              if action.edit then
+                vim.lsp.util.apply_workspace_edit(
+                  action.edit,
+                  client.offset_encoding
+                )
+              end
+
+              if action.command then
+                client:exec_cmd(action.command, { bufnr = bufnr, })
+              end
             end
           end
         end
@@ -110,7 +197,7 @@ vim.api.nvim_create_autocmd("BufWritePre", {
     if clients[1]:supports_method("textDocument/formatting") then
       vim.lsp.buf.format({ async = false, timeout_ms = 1000 })
     else
-      vim.cmd("silent normal! gg=G")
+      vim.cmd("normal! mzgg=G`z")
     end
 
     vim.fn.winrestview(view)
