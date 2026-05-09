@@ -19,7 +19,6 @@ local servers = {
     settings = {
       gopls = {
         completeUnimported = true,
-        usePlaceholders = true,
         analyses = {
           unusedparams = true,
         },
@@ -40,6 +39,9 @@ local servers = {
     ft = { "java" },
     settings = {
       java = {
+        saveActions = {
+          organizeImports = true,
+        },
         completion = {
           favoriteStaticMembers = {
             "org.junit.Assert.*",
@@ -107,10 +109,6 @@ end
 local function get_cap()
   local cap = vim.lsp.protocol.make_client_capabilities()
   cap.textDocument.completion.completionItem = { snippetSupport = true, commitCharactersSupport = true, deprecatedSupport = true, preselectSupport = true, insertReplaceSupport = true }
-  cap.textDocument.codeAction.codeActionLiteralSupport = {
-    codeActionKind = {
-      valueSet = { "", "quickfix", "refactor", "refactor.extract", "refactor.inline", "refactor.rewrite", "source", "source.organizeImports", "source.fixAll" } }
-  }
   cap.textDocument.completion.completionItem.resolveSupport = {
     properties = {
       "documentation",
@@ -168,12 +166,20 @@ vim.api.nvim_create_autocmd("BufWritePre", {
 
     for _, client in ipairs(clients) do
       if client:supports_method("textDocument/codeAction") then
-        local params = {
-          textDocument = vim.lsp.util.make_text_document_params(bufnr),
-          range = { start = { line = 0, character = 0 }, ["end"] = { line = vim.api.nvim_buf_line_count(bufnr), character = 0 } },
-          context = { only = { "source.organizeImports", "source.removeUnusedImports", } }
-        }
-        local result = vim.lsp.buf_request_sync(bufnr, "textDocument/codeAction", params, 1000)
+        local result = vim.lsp.buf_request_sync(
+          bufnr,
+          "textDocument/codeAction",
+          {
+            textDocument = vim.lsp.util.make_text_document_params(bufnr),
+            context = {
+              only = {
+                "source.organizeImports",
+              },
+            },
+          },
+          1000
+        )
+
         if result then
           for _, res in pairs(result) do
             for _, action in pairs(res.result or {}) do
@@ -185,16 +191,21 @@ vim.api.nvim_create_autocmd("BufWritePre", {
               end
 
               if action.command then
-                client:exec_cmd(action.command, { bufnr = bufnr, })
+                client:exec_cmd(action.command, {
+                  bufnr = bufnr,
+                })
               end
             end
           end
         end
-        break
       end
     end
 
-    if clients[1]:supports_method("textDocument/formatting") then
+    local formatters = vim.lsp.get_clients({
+      bufnr = bufnr,
+      method = "textDocument/formatting",
+    })
+    if formatters[1] then
       vim.lsp.buf.format({ async = false, timeout_ms = 1000 })
     else
       vim.cmd("normal! mzgg=G`z")
