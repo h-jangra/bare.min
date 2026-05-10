@@ -1,5 +1,7 @@
 local M = {}
 
+vim.g.bare_theme = "frappe"
+
 -- Catppuccin Frappe
 local frappe = {
   rosewater = "#f2d5cf",
@@ -93,7 +95,13 @@ local mocha = {
   none = "NONE",
 }
 
-local colors = macchiato
+local palettes = {
+  frappe = frappe,
+  macchiato = macchiato,
+  mocha = mocha,
+}
+
+local colors = palettes[vim.g.bare_theme or "frappe"]
 
 function M.setup()
   vim.cmd("hi clear")
@@ -117,11 +125,11 @@ function M.setup()
     Identifier = { fg = colors.mauve },
     Function = { fg = colors.blue },
     Statement = { fg = colors.mauve },
-    Conditional = { fg = colors.mauve, italic = true },
-    Repeat = { fg = colors.mauve, italic = true },
+    Conditional = { fg = colors.mauve },
+    Repeat = { fg = colors.mauve },
     Label = { fg = colors.mauve },
     Operator = { fg = colors.sky },
-    Keyword = { fg = colors.sapphire, italic = true },
+    Keyword = { fg = colors.sapphire },
     Exception = { fg = colors.red },
     PreProc = { fg = colors.yellow },
     Include = { fg = colors.mauve },
@@ -185,14 +193,24 @@ function M.setup()
     PmenuShadow = { fg = colors.teal, bg = colors.base },
 
     -- Diagnostics
-    DiagnosticError = { fg = colors.red },
-    DiagnosticWarn = { fg = colors.yellow },
-    DiagnosticInfo = { fg = colors.sapphire },
-    DiagnosticHint = { fg = colors.teal },
+    -- DiagnosticError = { fg = colors.red },
+    -- DiagnosticWarn = { fg = colors.yellow },
+    -- DiagnosticInfo = { fg = colors.sapphire },
+    -- DiagnosticHint = { fg = colors.teal },
     DiagnosticUnderlineError = { undercurl = true, sp = colors.red },
     DiagnosticUnderlineWarn = { undercurl = true, sp = colors.yellow },
     DiagnosticUnderlineInfo = { undercurl = true, sp = colors.sapphire },
     DiagnosticUnderlineHint = { undercurl = true, sp = colors.teal },
+
+    DiagnosticVirtualTextError = { fg = colors.red, bg = colors.none },
+    DiagnosticVirtualTextWarn = { fg = colors.yellow, bg = colors.none },
+    DiagnosticVirtualTextInfo = { fg = colors.sapphire, bg = colors.none },
+    DiagnosticVirtualTextHint = { fg = colors.teal, bg = colors.none },
+
+    DiagnosticSignError = { fg = colors.red },
+    DiagnosticSignWarn = { fg = colors.yellow },
+    DiagnosticSignInfo = { fg = colors.sapphire },
+    DiagnosticSignHint = { fg = colors.teal },
 
     -- LSP
     LspReferenceText = { bg = colors.overlay0 },
@@ -209,6 +227,9 @@ function M.setup()
     diffAdded = { fg = colors.green },
     diffChanged = { fg = colors.yellow },
     diffRemoved = { fg = colors.red },
+
+    WinSeparator = { fg = colors.surface1 },
+    FloatTitle = { fg = colors.blue, bold = true },
   }
 
   for group, opts in pairs(highlights) do
