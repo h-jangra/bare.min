@@ -1,112 +1,131 @@
--- Requires Busybox, Tinymist & Grip
+local M = {}
 
-local M, state = {}, {
-  html_job = nil,
+local state = {
+  jobs = {},
   html_port = 8080,
-  typst_jobs = {},
-  md_job = nil,
   md_port = 6419,
 }
 
-local function open_browser(url)
-  local cmd = vim.fn.has("mac") == 1 and "open"
+local function executable(cmd)
+  return vim.fn.executable(cmd) == 1
+end
+
+local function open(url)
+  local opener = vim.fn.has("mac") == 1 and "open"
       or vim.fn.has("unix") == 1 and "xdg-open"
       or "start"
-  vim.fn.jobstart({ cmd, url }, { detach = true })
+
+  vim.fn.jobstart({ opener, url }, { detach = true })
 end
 
-local function check_exec(name)
-  return vim.fn.executable(name) == 1
-end
+local function stop(name)
+  local job = state.jobs[name]
 
-local function stop(job)
   if job then
-    vim.fn.jobstop(job)
+    pcall(vim.fn.jobstop, job)
+    state.jobs[name] = nil
   end
 end
 
-function M.start_html(port)
-  M.stop_html()
-  if not check_exec("busybox") then return end
+local function current_file()
+  return vim.api.nvim_buf_get_name(0)
+end
+
+local function start_html(port)
+  if not executable("busybox") then return end
+
+  stop("html")
+
+  local file = current_file()
 
   state.html_port = port or state.html_port
-  state.html_job = vim.fn.jobstart({ "busybox", "httpd", "-f", "-p", tostring(state.html_port) },
-    { cwd = vim.fn.getcwd() })
+  state.jobs.html = vim.fn.jobstart({
+    "busybox",
+    "httpd",
+    "-f",
+    "-p",
+    tostring(state.html_port),
+  }, {
+    cwd = vim.fs.dirname(file),
+  })
 
-  local file = vim.fn.expand("%:p")
-  local url = "http://localhost:" .. state.html_port
-  if file and file ~= "" then
-    url = url .. "/" .. vim.fn.fnamemodify(file, ":.")
+  open("http://localhost:" .. state.html_port .. "/" .. vim.fs.basename(file))
+end
+
+local function start_markdown(port)
+  if not executable("grip") then
+    return
   end
 
-  open_browser(url)
-end
+  stop("markdown")
 
-function M.stop_html()
-  stop(state.html_job)
-  state.html_job = nil
-end
+  local file = current_file()
 
-function M.start_typst()
-  local file = vim.fn.expand("%:p")
-
-  stop(state.typst_jobs[file])
-  state.typst_jobs[file] = vim.fn.jobstart({ "tinymist", "preview", file, "--open" },
-    { cwd = vim.fn.fnamemodify(file, ":h") })
-end
-
-function M.stop_typst()
-  for _, job in pairs(state.typst_jobs) do vim.fn.jobstop(job) end
-  state.typst_jobs = {}
-end
-
-function M.start_md(port)
-  M.stop_md()
-  local file = vim.fn.expand("%:p")
   state.md_port = port or state.md_port
-  state.md_job = vim.fn.jobstart({ "grip", file, tostring(state.md_port) })
+  state.jobs.markdown = vim.fn.jobstart({
+    "grip",
+    file,
+    tostring(state.md_port),
+  })
 
   vim.defer_fn(function()
-    open_browser("http://localhost:" .. state.md_port)
-  end, 500)
+    open("http://localhost:" .. state.md_port)
+  end, 700)
 end
 
-function M.stop_md()
-  stop(state.md_job)
-  state.md_job = nil
+local function start_typst()
+  if not executable("tinymist") then
+    return
+  end
+
+  local file = current_file()
+  stop(file)
+
+  state.jobs[file] = vim.fn.jobstart({
+    "tinymist",
+    "preview",
+    file,
+    "--open",
+  }, {
+    cwd = vim.fs.dirname(file),
+  })
+end
+
+function M.preview(opts)
+  local ft = vim.bo.filetype
+  local port = tonumber(opts.args)
+
+  if ft == "html" then
+    start_html(port)
+  elseif ft == "markdown" then
+    start_markdown(port)
+  elseif ft == "typst" then
+    start_typst()
+  end
 end
 
 function M.stop()
-  M.stop_html()
-  M.stop_typst()
-  M.stop_md()
+  for name in pairs(state.jobs) do
+    stop(name)
+  end
 end
 
 function M.setup(opts)
   state.html_port = opts and opts.html_port or 8080
   state.md_port = opts and opts.md_port or 6419
 
-  vim.api.nvim_create_autocmd("FileType", {
-    pattern = "*",
-    callback = function()
-      local ft = vim.bo.filetype
+  local group = vim.api.nvim_create_augroup("Preview", { clear = true })
 
-      if ft == "typst" then
-        vim.api.nvim_buf_create_user_command(0, "PreviewTypst", M.start_typst, {})
-      elseif ft == "markdown" then
-        vim.api.nvim_buf_create_user_command(0, "PreviewMarkdown", function(cmd)
-          M.start_md(tonumber(cmd.args) or nil)
-        end, { nargs = "?" })
-      end
-
-      vim.api.nvim_buf_create_user_command(0, "PreviewHTML", function(cmd)
-        M.start_html(tonumber(cmd.args) or nil)
-      end, { nargs = "?" })
-    end
+  vim.api.nvim_create_user_command("Preview", M.preview, {
+    nargs = "?",
   })
 
   vim.api.nvim_create_user_command("PreviewStop", M.stop, {})
-  vim.api.nvim_create_autocmd("VimLeavePre", { callback = M.stop })
+
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = group,
+    callback = M.stop,
+  })
 end
 
 return M

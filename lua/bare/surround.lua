@@ -53,30 +53,52 @@ end
 
 function M.add(c)
   local pair = get_pair(c)
-  local s, e = vim.fn.getpos("'<"), vim.fn.getpos("'>")
 
-  if s[2] ~= 0 and e[2] ~= 0 then
-    vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), 'x', false)
+  if vim.fn.mode():match("[vV\22]") then
+    vim.cmd.normal({ "<Esc>", bang = true })
+
     vim.schedule(function()
-      local lines = vim.api.nvim_buf_get_lines(0, s[2] - 1, e[2], false)
-      if #lines == 1 then
-        lines[1] = lines[1]:sub(1, s[3] - 1) .. c .. lines[1]:sub(s[3], e[3]) .. pair .. lines[1]:sub(e[3] + 1)
-      else
-        lines[1] = lines[1]:sub(1, s[3] - 1) .. c .. lines[1]:sub(s[3])
-        lines[#lines] = lines[#lines]:sub(1, e[3]) .. pair .. lines[#lines]:sub(e[3] + 1)
+      local s = vim.fn.getpos("'<")
+      local e = vim.fn.getpos("'>")
+
+      local sr, sc = s[2] - 1, s[3] - 1
+      local er, ec = e[2] - 1, e[3]
+
+      local mode = vim.fn.visualmode()
+
+      if mode == "V" then
+        local lines = vim.api.nvim_buf_get_lines(0, sr, er + 1, false)
+
+        lines[1] = c .. lines[1]
+        lines[#lines] = lines[#lines] .. pair
+
+        vim.api.nvim_buf_set_lines(0, sr, er + 1, false, lines)
+        return
       end
-      vim.api.nvim_buf_set_lines(0, s[2] - 1, e[2], false, lines)
+
+      vim.api.nvim_buf_set_text(0, er, ec, er, ec, { pair })
+      vim.api.nvim_buf_set_text(0, sr, sc, sr, sc, { c })
     end)
-  else
-    local start, end_ = get_word()
-    if not start then
-      vim.notify("Not on a word", vim.log.levels.WARN)
-      return
-    end
-    local line = vim.api.nvim_get_current_line()
-    vim.api.nvim_set_current_line(line:sub(1, start - 1) .. c .. line:sub(start, end_) .. pair .. line:sub(end_ + 1))
-    vim.fn.cursor(vim.fn.line("."), start + 1)
+
+    return
   end
+
+  local start, end_ = get_word()
+  if not start then
+    return
+  end
+
+  local line = vim.api.nvim_get_current_line()
+
+  vim.api.nvim_set_current_line(
+    line:sub(1, start - 1)
+    .. c
+    .. line:sub(start, end_)
+    .. pair
+    .. line:sub(end_ + 1)
+  )
+
+  vim.fn.cursor(vim.fn.line("."), start + 1)
 end
 
 function M.delete(c)
@@ -109,7 +131,17 @@ function M.setup()
     local k = vim.fn.getchar()
     return type(k) == 'number' and vim.fn.nr2char(k) or k
   end
-  map('x', 'sa', function() M.add(get_char()) end, {})
+  map("x", "sa", function()
+    local open = get_char()
+    local close = get_pair(open)
+
+    local keys = vim.api.nvim_replace_termcodes(
+      "<Esc>`>a" .. close .. "<Esc>`<i" .. open .. "<Esc>",
+      true, false, true
+    )
+
+    vim.api.nvim_feedkeys(keys, "n", false)
+  end)
   map('n', 'sa', function() M.add(get_char()) end, {})
   map('n', 'sd', function() M.delete(get_char()) end, {})
   map('n', 'sc', function() M.change(get_char()) end, {})

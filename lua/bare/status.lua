@@ -21,8 +21,7 @@ local lsp_spinners = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "
 local spinner_idx = 0
 
 local function update_git_branch()
-  local branch = vim.b.gitsigns_head or vim.fn.system("git branch --show-current 2>/dev/null | tr -d '\\n'")
-  cache.branch = (branch and branch ~= "") and branch or nil
+  cache.branch = vim.b.gitsigns_head
 end
 
 local function update_lsp_clients()
@@ -31,7 +30,9 @@ local function update_lsp_clients()
   for _, client in ipairs(buf_clients) do
     table.insert(cache.lsp_clients, client.name)
   end
-  vim.cmd("redrawstatus")
+  vim.schedule(function()
+    vim.cmd("redrawstatus")
+  end)
 end
 
 
@@ -39,7 +40,7 @@ local function update_file_info()
   local path = vim.fn.fnamemodify(vim.fn.expand("%"), ":~:.")
   cache.filepath = path == "" and "[No Name]" or path
   local size = vim.fn.getfsize(vim.fn.expand("%:p"))
-  if size > 0 then
+  if size and size >= 0 then
     local suffixes = { "B", "K", "M", "G" }
     local i = 1
     while size > 1024 and i < #suffixes do
@@ -85,7 +86,10 @@ vim.api.nvim_create_autocmd("BufEnter", { callback = update_git_branch })
 vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach", "BufEnter" }, { callback = update_lsp_clients })
 vim.api.nvim_create_autocmd("LspProgress", {
   callback = function()
-    spinner_idx = (spinner_idx % #lsp_spinners) + 1; vim.cmd("redrawstatus")
+    spinner_idx = (spinner_idx % #lsp_spinners) + 1;
+    vim.schedule(function()
+      vim.cmd("redrawstatus")
+    end)
   end,
 })
 vim.api.nvim_create_autocmd("ModeChanged", { callback = function() vim.cmd("redrawstatus") end })
