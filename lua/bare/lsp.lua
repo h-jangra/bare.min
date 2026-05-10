@@ -79,9 +79,12 @@ local servers = {
   },
 }
 
-local ft_to_server = {}
+local ft_to_servers = {}
 for name, cfg in pairs(servers) do
-  for _, ft in ipairs(cfg.ft) do ft_to_server[ft] = name end
+  for _, ft in ipairs(cfg.ft) do
+    ft_to_servers[ft] = ft_to_servers[ft] or {}
+    table.insert(ft_to_servers[ft], name)
+  end
 end
 
 local function on_attach(client, bufnr)
@@ -101,8 +104,23 @@ local function on_attach(client, bufnr)
   vim.keymap.set('n', 'K', vim.lsp.buf.hover, opts)
   vim.keymap.set({ 'n', 'i' }, '<C-k>', vim.lsp.buf.signature_help, opts)
   vim.keymap.set('n', 'gd', vim.lsp.buf.definition, opts)
-  vim.keymap.set("n", "<C-j>", function() vim.diagnostic.jump({ count = -1, float = true }) end, opts)
-  vim.keymap.set("n", "<C-l>", function() vim.diagnostic.jump({ count = 1, float = true }) end, opts)
+  vim.keymap.set("n", "<C-j>", function()
+    vim.diagnostic.jump({
+      count = -1,
+      on_jump = function()
+        vim.diagnostic.open_float()
+      end,
+    })
+  end, opts)
+
+  vim.keymap.set("n", "<C-l>", function()
+    vim.diagnostic.jump({
+      count = 1,
+      on_jump = function()
+        vim.diagnostic.open_float()
+      end,
+    })
+  end, opts)
   vim.keymap.set('n', '<leader>ca', vim.lsp.buf.code_action, opts)
 end
 
@@ -130,29 +148,37 @@ end
 
 local function start_lsp(bufnr)
   local ft = vim.bo[bufnr].filetype
-  local server_name = ft_to_server[ft]
-  if not server_name then return end
-  local cfg = servers[server_name]
+  local server_names = ft_to_servers[ft]
+  if not server_names then return end
 
-  for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
-    if client.name == server_name then
-      return
+  for _, server_name in ipairs(server_names) do
+    local cfg = servers[server_name]
+
+    local already_attached = false
+
+    for _, client in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
+      if client.name == server_name then
+        already_attached = true
+        break
+      end
+    end
+
+    if not already_attached then
+      vim.lsp.start({
+        name = server_name,
+        cmd = cfg.cmd,
+        root_dir = find_root(bufnr),
+        settings = cfg.settings,
+        on_attach = on_attach,
+        capabilities = capabilities,
+      })
     end
   end
-
-  vim.lsp.start({
-    name = server_name,
-    cmd = cfg.cmd,
-    root_dir = find_root(bufnr),
-    settings = cfg.settings,
-    on_attach = on_attach,
-    capabilities = capabilities
-  })
 end
 
 vim.api.nvim_create_autocmd("FileType", {
   callback = function(args)
-    if ft_to_server[vim.bo[args.buf].filetype] then start_lsp(args.buf) end
+    if ft_to_servers[vim.bo[args.buf].filetype] then start_lsp(args.buf) end
   end
 })
 
@@ -163,37 +189,47 @@ vim.api.nvim_create_autocmd("BufWritePre", {
     if not clients[1] then return end
 
     local view = vim.fn.winsaveview()
-
-    for _, client in ipairs(clients) do
-      if client:supports_method("textDocument/codeAction") then
-        local result = vim.lsp.buf_request_sync(
-          bufnr,
-          "textDocument/codeAction",
-          {
-            textDocument = vim.lsp.util.make_text_document_params(bufnr),
-            context = {
-              only = {
-                "source.organizeImports",
+    local ft = vim.bo[bufnr].filetype
+    local import_ft = {
+      javascript = true,
+      javascriptreact = true,
+      typescript = true,
+      typescriptreact = true,
+      go = true,
+      java = true,
+    }
+    if import_ft[ft] then
+      for _, client in ipairs(clients) do
+        if client:supports_method("textDocument/codeAction") then
+          local result = vim.lsp.buf_request_sync(
+            bufnr,
+            "textDocument/codeAction",
+            {
+              textDocument = vim.lsp.util.make_text_document_params(bufnr),
+              context = {
+                only = {
+                  "source.organizeImports",
+                },
               },
             },
-          },
-          1000
-        )
+            1000
+          )
 
-        if result then
-          for _, res in pairs(result) do
-            for _, action in pairs(res.result or {}) do
-              if action.edit then
-                vim.lsp.util.apply_workspace_edit(
-                  action.edit,
-                  client.offset_encoding
-                )
-              end
+          if result then
+            for _, res in pairs(result) do
+              for _, action in pairs(res.result or {}) do
+                if action.edit then
+                  vim.lsp.util.apply_workspace_edit(
+                    action.edit,
+                    client.offset_encoding
+                  )
+                end
 
-              if action.command then
-                client:exec_cmd(action.command, {
-                  bufnr = bufnr,
-                })
+                if action.command then
+                  client:exec_cmd(action.command, {
+                    bufnr = bufnr,
+                  })
+                end
               end
             end
           end

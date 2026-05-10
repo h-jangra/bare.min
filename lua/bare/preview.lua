@@ -19,6 +19,12 @@ local function check_exec(name)
   return vim.fn.executable(name) == 1
 end
 
+local function stop(job)
+  if job then
+    vim.fn.jobstop(job)
+  end
+end
+
 function M.start_html(port)
   M.stop_html()
   if not check_exec("busybox") then return end
@@ -37,20 +43,16 @@ function M.start_html(port)
 end
 
 function M.stop_html()
-  if state.html_job then
-    vim.fn.jobstop(state.html_job)
-    state.html_job = nil
-  end
+  stop(state.html_job)
+  state.html_job = nil
 end
 
 function M.start_typst()
   local file = vim.fn.expand("%:p")
-  if not file:match("%.typ$") then return end
 
-  if state.typst_jobs[file] then vim.fn.jobstop(state.typst_jobs[file]) end
-  state.typst_jobs[file] = vim.fn.jobstart({ "tinymist", "preview", file, "--open"},
+  stop(state.typst_jobs[file])
+  state.typst_jobs[file] = vim.fn.jobstart({ "tinymist", "preview", file, "--open" },
     { cwd = vim.fn.fnamemodify(file, ":h") })
-
 end
 
 function M.stop_typst()
@@ -70,10 +72,8 @@ function M.start_md(port)
 end
 
 function M.stop_md()
-  if state.md_job then
-    vim.fn.jobstop(state.md_job)
-    state.md_job = nil
-  end
+  stop(state.md_job)
+  state.md_job = nil
 end
 
 function M.stop()

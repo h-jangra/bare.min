@@ -3,48 +3,38 @@ vim.api.nvim_set_hl(0, "WinBarInactive", { fg = "#54546d", bg = "#2a2a37", itali
 vim.api.nvim_set_hl(0, "WinBarModified", { fg = "#2a2a37", bg = "#7fb4ca" })
 
 local function bufname(buf)
-  local n = vim.api.nvim_buf_get_name(buf)
-  n = vim.fn.fnamemodify(n, ":t")
-  return (n ~= "" and n or "[No Name]")
+  return vim.fn.fnamemodify(
+    vim.api.nvim_buf_get_name(buf),
+    ":t"
+  )
 end
 
 function _G.goto_buf(buf) vim.api.nvim_set_current_buf(buf) end
 
-local function real_bufs()
-  local n = 0
-  for _, b in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.bo[b].buflisted
-        and vim.api.nvim_buf_is_loaded(b)
-        and vim.bo[b].buftype == ""
-        and vim.api.nvim_buf_get_name(b) ~= "" then
-      n = n + 1
-      if n > 1 then return n end
-    end
-  end
-  return n
+local function valid_buf(buf)
+  return vim.bo[buf].buflisted
+      and vim.api.nvim_buf_is_loaded(buf)
+      and vim.bo[buf].buftype == ""
+      and vim.api.nvim_buf_get_name(buf) ~= ""
 end
 
+local icons = require("bare.icons")
 function _G.winbar_buffers()
   local cur = vim.api.nvim_get_current_buf()
   local parts = {}
-  local icons = require("bare.icons")
 
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.bo[b].buflisted
-        and vim.api.nvim_buf_is_loaded(b)
-        and vim.bo[b].buftype == ""
-        and vim.api.nvim_buf_get_name(b) ~= "" then
+    if valid_buf(b) then
       local group =
           (b == cur)
           and (vim.bo[b].modified and "WinBarModified" or "WinBarActive")
           or (vim.bo[b].modified and "WinBarModified" or "WinBarInactive")
 
-      table.insert(parts,
-        string.format("%%%d@v:lua.goto_buf@%%#%s# %s %s %%X%%#Normal#",
-          b, group,
-          icons.get_icon(vim.bo[b].filetype) or "󰈤",
-          bufname(b)
-        )
+      parts[#parts + 1] = string.format(
+        "%%%d@v:lua.goto_buf@%%#%s# %s %s %%X%%#Normal#",
+        b, group,
+        icons.get_icon(vim.bo[b].filetype) or "󰈤",
+        bufname(b)
       )
     end
   end
@@ -63,10 +53,21 @@ local function update()
     return
   end
 
-  vim.wo.winbar = (real_bufs() > 1)
+  local count = 0
+
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if valid_buf(b) then
+      count = count + 1
+      if count > 1 then
+        break
+      end
+    end
+  end
+
+  vim.wo.winbar = count > 1
       and "%{%v:lua.winbar_buffers()%}"
       or nil
 end
 
-vim.api.nvim_create_autocmd({ "BufAdd", "BufDelete", "BufEnter", "BufLeave" }, { callback = update })
+vim.api.nvim_create_autocmd({ "BufAdd", "BufDelete", "BufEnter", "BufModifiedSet", }, { callback = update })
 update()

@@ -1,7 +1,7 @@
 vim.opt.pumheight = 12
-vim.opt.shortmess:append("c")
+-- vim.opt.shortmess:append("c")
 vim.opt.complete = ".,w,b,u"
-vim.opt.completeopt = { "menu", "menuone", "noselect", "popup" }
+vim.opt.completeopt = { "menu", "menuone", "noselect", "popup", "fuzzy" }
 vim.opt.pumborder = "rounded"
 
 local icons = {
@@ -37,9 +37,8 @@ local function format_completion(item)
   local kind = vim.lsp.protocol.CompletionItemKind[item.kind] or "Unknown"
   local label = item.label
   return {
-    abbr = string.format("%s %s", icons[kind] or "?", label),
+    abbr = (icons[kind] or "?") .. " " .. label,
     word = item.label,
-    kind = kind,
     menu = item.detail or item.source or "",
   }
 end
@@ -48,7 +47,6 @@ vim.api.nvim_create_autocmd("LspAttach", {
   callback = function(args)
     local client = vim.lsp.get_client_by_id(args.data.client_id)
     if not client then return end
-
 
     if client and client:supports_method("textDocument/completion") then
       local chars = {}
@@ -112,7 +110,7 @@ vim.api.nvim_create_autocmd("CompleteDone", {
       local client_id = item.user_data.nvim.lsp.client_id
       local client = vim.lsp.get_client_by_id(client_id)
       if client then
-        vim.lsp.util.apply_text_edits(edits, bufnr, client.offset_encoding)
+        vim.lsp.util.apply_text_edits(edits, bufnr, "utf-16")
       end
       return
     end
