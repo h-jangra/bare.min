@@ -87,7 +87,35 @@ local function build_tree(path, depth, lines, map, extmarks)
       end
     end
 
-    local line_text = string.rep("  ", depth) .. prefix .. git_icon .. icon .. item.name
+    local display_name = item.name
+
+    if item.is_dir then
+      local parts = {}
+      local current = item
+
+      while true do
+        local children = read_dir(current.path)
+
+        if #children == 1 and children[1].is_dir then
+          current = children[1]
+          table.insert(parts, current.name)
+        else
+          break
+        end
+      end
+
+      if #parts > 0 then
+        display_name = item.name .. "/" .. table.concat(parts, "/")
+      end
+    end
+
+    local line_text =
+        string.rep("  ", depth)
+        .. prefix
+        .. git_icon
+        .. icon
+        .. display_name
+
     table.insert(lines, line_text)
     table.insert(map, { path = item.path, is_dir = item.is_dir })
 
@@ -117,8 +145,26 @@ local function build_tree(path, depth, lines, map, extmarks)
       end
     end
 
+    local next_path = item.path
+
+    if item.is_dir then
+      local current = item
+
+      while true do
+        local children = read_dir(current.path)
+
+        if #children == 1 and children[1].is_dir then
+          current = children[1]
+        else
+          break
+        end
+      end
+
+      next_path = current.path
+    end
+
     if item.is_dir and is_expanded then
-      build_tree(item.path, depth + 1, lines, map, extmarks)
+      build_tree(next_path, depth + 1, lines, map, extmarks)
     end
   end
   return lines, map, extmarks
@@ -507,6 +553,8 @@ local function setup_buffer()
     { "x",     move_item },
     { "p",     paste_item },
     { "R",     render },
+    { ">",     function() vim.cmd("vertical resize +5") end },
+    { "<",     function() vim.cmd("vertical resize -5") end },
   }
   for _, m in ipairs(maps) do
     vim.keymap.set("n", m[1], m[2], opts)
