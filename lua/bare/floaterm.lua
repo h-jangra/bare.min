@@ -21,21 +21,23 @@ function M.setup(user_config)
   M.config = vim.tbl_deep_extend("force", M.config, user_config or {})
 end
 
-local function create_window()
-  local width = math.floor(vim.o.columns * M.config.width)
-  local height = math.floor(vim.o.lines * M.config.height)
-  local col = math.floor((vim.o.columns - width) / 2)
-  local row = math.floor((vim.o.lines - height) / 2)
+local ui = require("bare.ui")
 
-  local win = vim.api.nvim_open_win(M.state.buf, true, {
-    relative = "editor",
-    width = width,
-    height = height,
-    col = col,
-    row = row,
-    style = "minimal",
+local function create_window()
+  local buf, win = ui.float({
+    width = math.floor(vim.o.columns * M.config.width),
+    height = math.floor(vim.o.lines * M.config.height),
     border = M.config.border,
   })
+
+  -- If we already have a buffer, switch the window to it
+  if M.state.buf and vim.api.nvim_buf_is_valid(M.state.buf) then
+    vim.api.nvim_win_set_buf(win, M.state.buf)
+    -- Clean up the temporary buffer created by ui.float
+    vim.api.nvim_buf_delete(buf, { force = true })
+  else
+    M.state.buf = buf
+  end
 
   vim.cmd.startinsert()
   vim.api.nvim_buf_set_keymap(M.state.buf, "t", "<Esc>", "<C-\\><C-n>:Floaterm<CR>", {

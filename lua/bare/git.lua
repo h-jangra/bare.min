@@ -39,33 +39,14 @@ local function set_hl()
   })
 end
 
+local ns = vim.api.nvim_create_namespace("bare_git")
+
 local function clear(buf)
-  vim.fn.sign_unplace("bare_git", { buffer = buf })
+  vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 end
 
 local function git_root(path)
-  local dir = vim.fs.dirname(path)
-
-  if root_cache[dir] then
-    return root_cache[dir]
-  end
-
-  local result = vim.system({
-    "git",
-    "-C",
-    dir,
-    "rev-parse",
-    "--show-toplevel",
-  }, { text = true }):wait()
-
-  if result.code ~= 0 then
-    return nil
-  end
-
-  local root = vim.trim(result.stdout)
-  root_cache[dir] = root
-
-  return root
+  return vim.fs.root(path, ".git")
 end
 
 local function parse_hunks(buf, base)
@@ -117,8 +98,7 @@ local function parse_hunks(buf, base)
       last_diff[buf] = diff
 
       clear(buf)
-
-      local id = 1
+      local total_lines = vim.api.nvim_buf_line_count(buf)
 
       for line in diff:gmatch("[^\r\n]+") do
         local old_start, old_count, new_start, new_count =
@@ -129,31 +109,37 @@ local function parse_hunks(buf, base)
           new_count = tonumber(new_count) or 1
           new_start = tonumber(new_start)
 
-          local sign
+          local sign_text
+          local hl
           local start_line
           local count
 
           if new_count == 0 then
-            sign = "BareGitDelete"
+            sign_text = signs.delete
+            hl = "BareGitDelete"
             start_line = math.max(new_start, 1)
             count = 1
           elseif old_count == 0 then
-            sign = "BareGitAdd"
+            sign_text = signs.add
+            hl = "BareGitAdd"
             start_line = new_start
             count = new_count
           else
-            sign = "BareGitChange"
+            sign_text = signs.change
+            hl = "BareGitChange"
             start_line = new_start
             count = math.max(old_count, new_count)
           end
 
           for i = 0, count - 1 do
-            vim.fn.sign_place(id, "bare_git", sign, buf, {
-              lnum = start_line + i,
-              priority = 10,
-            })
-
-            id = id + 1
+            local lnum = start_line + i - 1
+            if lnum >= 0 and lnum < total_lines then
+              vim.api.nvim_buf_set_extmark(buf, ns, lnum, 0, {
+                sign_text = sign_text,
+                sign_hl_group = hl,
+                priority = 10,
+              })
+            end
           end
         end
       end

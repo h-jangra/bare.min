@@ -66,17 +66,27 @@ local servers = {
   jdtls         = {
     cmd = { "jdtls" },
     ft = { "java" },
+
     settings = {
       java = {
-        saveActions = { organizeImports = true },
+        saveActions = { organizeImports = true, },
+
         completion = {
-          favoriteStaticMembers = {
-            "org.junit.Assert.*", "org.junit.jupiter.api.Assertions.*", "org.mockito.Mockito.*",
-          },
-          importOrder = { "java", "javax", "com", "org" },
+          enabled = true,
+          guessMethodArguments = true,
+          lazyResolveTextEdit = true,
+
+          favoriteStaticMembers = { "org.junit.Assert.*", "org.junit.jupiter.api.Assertions.*", "org.mockito.Mockito.*", },
+          filteredTypes = { "com.sun.*", "sun.*", "jdk.*", "org.graalvm.*", "io.micrometer.shaded.*", },
+          importOrder = { "java", "javax", "jakarta", "com", "org", },
         },
-        sources = { organizeImports = { starThreshold = 9999, staticStarThreshold = 9999 } },
-      }
+
+        signatureHelp = { enabled = false, },
+        referencesCodeLens = { enabled = false, },
+        implementationsCodeLens = { enabled = false, },
+        configuration = { updateBuildConfiguration = "interactive", },
+        sources = { organizeImports = { starThreshold = 9999, staticStarThreshold = 9999, }, },
+      },
     },
   },
   tailwindcss   = {
@@ -97,14 +107,18 @@ end
 local function on_attach(_, bufnr)
   local function diag_jump(count)
     return function()
-      vim.diagnostic.jump({ count = count, on_jump = vim.diagnostic.open_float })
+      vim.diagnostic.jump({ count = count, float = true })
+      vim.cmd("normal! zz")
     end
   end
 
   local map = function(modes, lhs, rhs) vim.keymap.set(modes, lhs, rhs, { buffer = bufnr }) end
   map("n", "K", vim.lsp.buf.hover)
   map({ "n", "i" }, "<C-k>", vim.lsp.buf.signature_help)
-  map("n", "gd", vim.lsp.buf.definition)
+  map("n", "gd", function() 
+    vim.lsp.buf.definition()
+    vim.schedule(function() vim.cmd("normal! zz") end)
+  end)
   map("n", "<C-j>", diag_jump(-1))
   map("n", "<C-l>", diag_jump(1))
   map("n", "<leader>ca", vim.lsp.buf.code_action)
@@ -119,6 +133,9 @@ local function get_capabilities()
     preselectSupport = true,
     insertReplaceSupport = true,
   }
+  cap.textDocument.completion.completionItem.insertTextModeSupport = {
+    valueSet = { 1, 2 },
+  }
   cap.textDocument.completion.completionItem.resolveSupport = {
     properties = { "documentation", "detail", "additionalTextEdits" },
   }
@@ -127,35 +144,22 @@ end
 
 local capabilities = get_capabilities()
 
-local function find_root(bufnr)
-  local markers = { ".git", "package.json", "Cargo.toml", "go.mod", "pyproject.toml", "setup.py" }
-  local path = vim.fs.dirname(vim.api.nvim_buf_get_name(bufnr))
-  local found = vim.fs.find(markers, { path = path, upward = true })
-  return found[1] and vim.fs.dirname(found[1]) or vim.fn.getcwd()
-end
-
 local function start_lsp(bufnr)
   local names = ft_to_servers[vim.bo[bufnr].filetype]
   if not names then return end
 
-  local attached = {}
-  for _, c in ipairs(vim.lsp.get_clients({ bufnr = bufnr })) do
-    attached[c.name] = true
-  end
-
   for _, name in ipairs(names) do
-    if not attached[name] then
-      local cfg = servers[name]
-      if vim.fn.executable(cfg.cmd[1]) == 0 then goto continue end
+    local cfg = servers[name]
+    if vim.fn.executable(cfg.cmd[1]) == 1 then
       vim.lsp.start({
         name         = name,
         cmd          = cfg.cmd,
-        root_dir     = find_root(bufnr),
+        root_dir     = vim.fs.root(bufnr, { ".git", "pom.xml", "build.gradle", "mvnw", "gradlew", "package.json", "Cargo.toml", "go.mod" }),
         settings     = cfg.settings,
         on_attach    = on_attach,
         capabilities = capabilities,
-      })
-      ::continue::
+        flags        = { allow_incremental_sync = true },
+      }, { bufnr = bufnr })
     end
   end
 end

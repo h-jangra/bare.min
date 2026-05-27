@@ -4,20 +4,11 @@ local function has(cmd)
   return vim.fn.executable(cmd) == 1
 end
 
+local ui = require("bare.ui")
+
 local function float_cmd(cmd, on_select)
   local tmp = vim.fn.tempname()
-  local buf = vim.api.nvim_create_buf(false, true)
-  local width, height = math.floor(vim.o.columns * 0.8), math.floor(vim.o.lines * 0.6)
-
-  local win = vim.api.nvim_open_win(buf, true, {
-    relative = "editor",
-    style = "minimal",
-    border = "rounded",
-    width = width,
-    height = height,
-    row = math.floor((vim.o.lines - height) / 3),
-    col = math.floor((vim.o.columns - width) / 2),
-  })
+  local buf, win = ui.float()
 
   vim.bo[buf].bufhidden = "wipe"
 

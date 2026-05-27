@@ -1,7 +1,7 @@
-vim.opt.pumheight = 12
--- vim.opt.shortmess:append("c")
-vim.opt.complete = ".,w,b,u"
-vim.opt.completeopt = { "menu", "menuone", "noselect", "popup", "fuzzy" }
+vim.opt.pumheight = 10
+vim.opt.shortmess:append("c")
+-- vim.opt.complete = ".,w,b,u"
+vim.opt.completeopt = { "menuone", "noinsert", "noselect" }
 vim.opt.pumborder = "rounded"
 
 local icons = {
@@ -27,7 +27,7 @@ local icons = {
   EnumMember    = "󰒻",
   Constant      = "󰏿",
   Struct        = "󰙅",
-  Event         = "",
+  Event         = "",
   Operator      = "󰆕",
   TypeParameter = "󰊄",
 }
@@ -49,11 +49,11 @@ vim.api.nvim_create_autocmd("LspAttach", {
     if not client then return end
 
     if client and client:supports_method("textDocument/completion") then
-      local chars = {}
-      for c in ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_.:=>"):gmatch(".") do
-        table.insert(chars, c)
-      end
-      client.server_capabilities.completionProvider.triggerCharacters = chars
+      -- local chars = {}
+      -- for c in ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"):gmatch(".") do
+      --   table.insert(chars, c)
+      -- end
+      -- client.server_capabilities.completionProvider.triggerCharacters = chars
 
       vim.lsp.completion.enable(true, client.id, args.buf, {
         autotrigger = true,
@@ -69,8 +69,10 @@ vim.keymap.set("i", "<C-Space>", function()
   if text_before:match("%([^)]*$") then
     vim.lsp.buf.signature_help()
   else
-    vim.fn.feedkeys(vim.keycode("<C-x><C-o>"), "n")
+    vim.lsp.completion.get()
   end
+
+  return vim.keycode("")
 end, { expr = true, silent = true, desc = "Completion or signature help" })
 
 vim.keymap.set("i", "<Tab>", function()
@@ -95,54 +97,19 @@ vim.keymap.set("i", "<S-Tab>", function()
   end
 end, { expr = true, silent = true })
 
-vim.api.nvim_create_autocmd("CompleteDone", {
+vim.keymap.set("i", "<CR>", function()
+  if vim.fn.complete_info()["selected"] ~= -1 then
+    return vim.keycode("<C-y>")
+  end
+  return vim.keycode("<CR>")
+end, { expr = true, silent = true })
+
+vim.api.nvim_create_autocmd("InsertCharPre", {
   callback = function()
-    local item = vim.v.completed_item
-    if not item or not item.user_data then return end
-
-    local completion = item.user_data.nvim and item.user_data.nvim.lsp and item.user_data.nvim.lsp.completion_item
-    if not completion then return end
-
-    -- Apply additionalTextEdits (autoimport)
-    local edits = completion.additionalTextEdits
-    if edits and #edits > 0 then
-      local bufnr = vim.api.nvim_get_current_buf()
-      local client_id = item.user_data.nvim.lsp.client_id
-      local client = vim.lsp.get_client_by_id(client_id)
-      if client then
-        vim.lsp.util.apply_text_edits(edits, bufnr, "utf-16")
-      end
-      return
-    end
-
-    -- If edits not in item yet, resolve them
-    local bufnr = vim.api.nvim_get_current_buf()
-    local clients = vim.lsp.get_clients({ bufnr = bufnr })
-    for _, client in ipairs(clients) do
-      if client:supports_method("completionItem/resolve") then
-        local result = vim.lsp.buf_request_sync(bufnr, "completionItem/resolve", completion, 500)
-        if result then
-          for _, res in pairs(result) do
-            local resolved = res.result
-            if resolved and resolved.additionalTextEdits and #resolved.additionalTextEdits > 0 then
-              vim.lsp.util.apply_text_edits(resolved.additionalTextEdits, bufnr, client.offset_encoding)
-            end
-          end
-        end
-        break
-      end
-    end
+    if vim.fn.pumvisible() == 1 then return end
+    if vim.fn.match(vim.v.char, '[[:keyword:]]') < 0 then return end
+    vim.schedule(function()
+      vim.lsp.completion.get()
+    end)
   end,
 })
-
--- vim.api.nvim_create_autocmd("InsertCharPre", {
---   callback = function()
---     local col = vim.fn.col('.')
---     local ch = vim.v.char
---     if ch:match("[%w_.:]") then
---       vim.defer_fn(function()
---         vim.fn.feedkeys(vim.keycode("<C-x><C-o>"), "n")
---       end, 1)
---     end
---   end,
--- })

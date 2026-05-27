@@ -35,10 +35,14 @@ local function update_lsp_clients()
   end)
 end
 
+local function shorten_path(path)
+  if path == "" then return "[No Name]" end
+  return vim.fn.pathshorten(vim.fn.fnamemodify(path, ":~:."))
+end
 
 local function update_file_info()
   local path = vim.fn.fnamemodify(vim.fn.expand("%"), ":~:.")
-  cache.filepath = path == "" and "[No Name]" or path
+  cache.filepath = shorten_path(path)
   local size = vim.fn.getfsize(vim.fn.expand("%:p"))
   if size and size >= 0 then
     local suffixes = { "B", "K", "M", "G" }
