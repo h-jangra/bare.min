@@ -1,7 +1,7 @@
 vim.opt.pumheight = 10
 vim.opt.shortmess:append("c")
 -- vim.opt.complete = ".,w,b,u"
-vim.opt.completeopt = { "menuone", "noinsert", "noselect" }
+vim.opt.completeopt = { "menuone", "noinsert", "menu", }
 vim.opt.pumborder = "rounded"
 
 local icons = {
@@ -32,9 +32,9 @@ local icons = {
   TypeParameter = "󰊄",
 }
 
-
+local CompletionItemKind = vim.lsp.protocol.CompletionItemKind
 local function format_completion(item)
-  local kind = vim.lsp.protocol.CompletionItemKind[item.kind] or "Unknown"
+  local kind = CompletionItemKind[item.kind] or "Unknown"
   local label = item.label
   return {
     abbr = (icons[kind] or "?") .. " " .. label,
@@ -49,15 +49,16 @@ vim.api.nvim_create_autocmd("LspAttach", {
     if not client then return end
 
     if client and client:supports_method("textDocument/completion") then
-      -- local chars = {}
-      -- for c in ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"):gmatch(".") do
-      --   table.insert(chars, c)
-      -- end
-      -- client.server_capabilities.completionProvider.triggerCharacters = chars
+      local chars = {}
+      for c in ("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"):gmatch(".") do
+        table.insert(chars, c)
+      end
+      client.server_capabilities.completionProvider.triggerCharacters = chars
 
       vim.lsp.completion.enable(true, client.id, args.buf, {
         autotrigger = true,
         convert = format_completion,
+        ghost_text = true,
       })
     end
   end,
@@ -98,18 +99,18 @@ vim.keymap.set("i", "<S-Tab>", function()
 end, { expr = true, silent = true })
 
 vim.keymap.set("i", "<CR>", function()
-  if vim.fn.complete_info()["selected"] ~= -1 then
+  if vim.fn.pumvisible() == 1 and vim.fn.complete_info().selected ~= -1 then
     return vim.keycode("<C-y>")
   end
   return vim.keycode("<CR>")
 end, { expr = true, silent = true })
 
-vim.api.nvim_create_autocmd("InsertCharPre", {
-  callback = function()
-    if vim.fn.pumvisible() == 1 then return end
-    if vim.fn.match(vim.v.char, '[[:keyword:]]') < 0 then return end
-    vim.schedule(function()
-      vim.lsp.completion.get()
-    end)
-  end,
-})
+-- vim.api.nvim_create_autocmd("InsertCharPre", {
+--   callback = function()
+--     if vim.fn.pumvisible() == 1 then return end
+--     if vim.fn.match(vim.v.char, '[[:keyword:]]') < 0 then return end
+--     vim.schedule(function()
+--       vim.lsp.completion.get()
+--     end)
+--   end,
+-- })

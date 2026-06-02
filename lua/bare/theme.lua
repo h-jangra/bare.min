@@ -216,6 +216,7 @@ function M.setup()
     LspReferenceText = { bg = colors.overlay0 },
     LspReferenceRead = { bg = colors.overlay0 },
     LspReferenceWrite = { bg = colors.overlay0 },
+    LspGhostText = { fg = colors.surface2, italic = true, },
 
     -- Special
     Todo = { bg = colors.yellow, fg = colors.base },

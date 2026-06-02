@@ -24,7 +24,6 @@ vim.schedule(function()
   require("bare.md").setup()
   require("bare.preview").setup()
   require("bare.cmp")
-  -- require("bare.completion")
   -- require("bare.netrw")
 
   require("bare.marks").setup()
