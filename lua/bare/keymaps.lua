@@ -16,6 +16,15 @@ map("n", "<C-c>", "<cmd>%y+<cr>", { desc = "Copy File to Clipboard" })
 map("n", "<Tab>", "<cmd>bnext<cr>", opts)
 map("n", "<S-Tab>", "<cmd>bprevious<cr>", opts)
 map("n", "<leader>x", "<cmd>bdelete!<cr>", { desc = "Close Buffer" })
+vim.keymap.set("n", "<leader>z", function()
+  local current = vim.api.nvim_get_current_buf()
+
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if buf ~= current and vim.bo[buf].buflisted then
+      vim.api.nvim_buf_delete(buf, { force = true })
+    end
+  end
+end, { desc = "Close all listed buffers except current" })
 
 -- Window navigation
 map("n", "<C-h>", "<C-w>h", opts)
