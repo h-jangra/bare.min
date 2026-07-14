@@ -2,17 +2,18 @@ local servers = {
   lua_ls = "lua-language-server",
   pyright = "pyright",
   ts_ls = "typescript-language-server",
-  rust_analyzer = "rust-analyzer",
-  gopls = "gopls",
-  clangd = "clang",
+  -- rust_analyzer = "rust-analyzer",
+  -- gopls = "gopls",
+  -- clangd = "clang",
   html = "vscode-html-languageserver",
   cssls = "vscode-css-languageserver",
   jsonls = "vscode-json-languageserver",
   taplo = "taplo",
   bashls = "bash-language-server",
+  yaml_lsp = "yaml-language-server",
   tailwindcss = "tailwindcss-language-server",
   tinymist = "tinymist",
-  jdtls = "jdtls",
+  -- jdtls = "jdtls",
 }
 
 local installed = {}

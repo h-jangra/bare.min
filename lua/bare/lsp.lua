@@ -75,6 +75,7 @@ local servers = {
   jsonls = { cmd = { "vscode-json-language-server", "--stdio" }, ft = { "json" } },
   taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
   bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
+  yaml_lsp = { cmd = { "yaml-language-server", "--stdio" }, ft = { "yaml", "yml" } },
   tinymist = {
     cmd = { "tinymist", "lsp" },
     ft = { "typst" },
@@ -121,9 +122,15 @@ local function on_attach(_, bufnr)
   local map = function(m, l, r) vim.keymap.set(m, l, r, { buffer = bufnr }) end
   map("n", "K", vim.lsp.buf.hover)
   map({ "n", "i" }, "<C-k>", vim.lsp.buf.signature_help)
-  map("n", "gd", function() vim.lsp.buf.definition(); vim.schedule(function() vim.cmd("normal! zz") end) end)
-  map("n", "<C-j>", function() vim.diagnostic.jump({ count = -1, float = true }); vim.cmd("normal! zz") end)
-  map("n", "<C-l>", function() vim.diagnostic.jump({ count = 1, float = true }); vim.cmd("normal! zz") end)
+  map("n", "gd", function()
+    vim.lsp.buf.definition(); vim.schedule(function() vim.cmd("normal! zz") end)
+  end)
+  map("n", "<C-j>", function()
+    vim.diagnostic.jump({ count = -1, float = true }); vim.cmd("normal! zz")
+  end)
+  map("n", "<C-l>", function()
+    vim.diagnostic.jump({ count = 1, float = true }); vim.cmd("normal! zz")
+  end)
   map("n", "<leader>ca", vim.lsp.buf.code_action)
 end
 
