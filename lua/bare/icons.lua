@@ -84,11 +84,16 @@ function M.get_icon(ft)
   return data.icon
 end
 
+local defined_hls = {}
+
 function M.get_hl(ft)
   local data = M.icons[ft] or M.icons.default
   local hl_name = "FileIcon" .. ft:gsub("^%l", string.upper):gsub("[^%w]", "")
 
-  vim.api.nvim_set_hl(0, hl_name, { fg = data.color, bold = true })
+  if not defined_hls[hl_name] then
+    vim.api.nvim_set_hl(0, hl_name, { fg = data.color, bold = true })
+    defined_hls[hl_name] = true
+  end
 
   return hl_name
 end

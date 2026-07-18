@@ -179,7 +179,7 @@ function M.setup()
 
   local group = vim.api.nvim_create_augroup("BareGit", { clear = true })
 
-  local timer = vim.uv.new_timer()
+  local timers = {}
 
   vim.api.nvim_create_autocmd({
     "BufEnter",
@@ -188,13 +188,29 @@ function M.setup()
   }, {
     group = group,
     callback = function(args)
-      timer:stop()
+      local buf = args.buf
+      if not timers[buf] then
+        timers[buf] = vim.uv.new_timer()
+      end
+      timers[buf]:stop()
 
-      timer:start(120, 0, function()
+      timers[buf]:start(120, 0, function()
         vim.schedule(function()
-          M.update(args.buf)
+          M.update(buf)
         end)
       end)
+    end,
+  })
+
+  vim.api.nvim_create_autocmd("BufWipeout", {
+    group = group,
+    callback = function(args)
+      local buf = args.buf
+      if timers[buf] then
+        timers[buf]:stop()
+        timers[buf]:close()
+        timers[buf] = nil
+      end
     end,
   })
 

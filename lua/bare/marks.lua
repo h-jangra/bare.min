@@ -3,32 +3,36 @@ local sign = "BuiltinMark"
 local group = "BuiltinMarkGroup"
 local defined_signs = {}
 
-local function update_signs()
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_loaded(bufnr) then
-      vim.fn.sign_unplace(group, { buffer = bufnr })
-      for _, m in ipairs(vim.fn.getmarklist(bufnr)) do
-        local name = m.mark:sub(2, 2)
-        if name:match("[a-z]") and m.pos and m.pos[2] > 0 then
-          local sign_name = sign .. name
-          if not defined_signs[sign_name] then
-            vim.fn.sign_define(sign_name, { text = name, texthl = "Comment" })
-            defined_signs[sign_name] = true
-          end
-          vim.fn.sign_place(0, group, sign_name, bufnr, { lnum = m.pos[2] })
-        end
+local function update_signs(opts)
+  local bufnr = (opts and opts.buf) or vim.api.nvim_get_current_buf()
+  if not vim.api.nvim_buf_is_loaded(bufnr) then return end
+  if vim.bo[bufnr].buftype ~= "" then return end
+
+  vim.fn.sign_unplace(group, { buffer = bufnr })
+
+  -- Local marks
+  for _, m in ipairs(vim.fn.getmarklist(bufnr)) do
+    local name = m.mark:sub(2, 2)
+    if name:match("[a-z]") and m.pos and m.pos[2] > 0 then
+      local sign_name = sign .. name
+      if not defined_signs[sign_name] then
+        vim.fn.sign_define(sign_name, { text = name, texthl = "Comment" })
+        defined_signs[sign_name] = true
       end
-      for _, m in ipairs(vim.fn.getmarklist()) do
-        local name = m.mark:sub(2, 2)
-        if name:match("[A-Z]") and m.pos and m.pos[1] == bufnr and m.pos[2] > 0 then
-          local sign_name = sign .. name
-          if not defined_signs[sign_name] then
-            vim.fn.sign_define(sign_name, { text = name, texthl = "String" })
-            defined_signs[sign_name] = true
-          end
-          vim.fn.sign_place(0, group, sign_name, bufnr, { lnum = m.pos[2] })
-        end
+      vim.fn.sign_place(0, group, sign_name, bufnr, { lnum = m.pos[2] })
+    end
+  end
+
+  -- Global marks
+  for _, m in ipairs(vim.fn.getmarklist()) do
+    local name = m.mark:sub(2, 2)
+    if name:match("[A-Z]") and m.pos and m.pos[1] == bufnr and m.pos[2] > 0 then
+      local sign_name = sign .. name
+      if not defined_signs[sign_name] then
+        vim.fn.sign_define(sign_name, { text = name, texthl = "String" })
+        defined_signs[sign_name] = true
       end
+      vim.fn.sign_place(0, group, sign_name, bufnr, { lnum = m.pos[2] })
     end
   end
 end

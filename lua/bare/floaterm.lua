@@ -59,7 +59,7 @@ function M.open(cmd)
     M.state.buf = vim.api.nvim_create_buf(false, true)
     create_window()
     M.state.cmd = cmd
-    vim.fn.jobstart(cmd, { term = true })
+    vim.fn.termopen(cmd)
     return
   end
 
@@ -71,7 +71,7 @@ function M.open(cmd)
   M.state.buf = vim.api.nvim_create_buf(false, true)
   create_window()
   M.state.cmd = vim.o.shell
-  vim.fn.jobstart(M.state.cmd, { term = true })
+  vim.fn.termopen(M.state.cmd)
 end
 
 vim.api.nvim_create_user_command("Floaterm", function(opts)

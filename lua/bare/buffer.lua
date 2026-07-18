@@ -19,30 +19,45 @@ local function valid_buf(buf)
 end
 
 local icons = require("bare.icons")
+local buf_cache = {}
+
+local function update_buf_cache()
+  buf_cache = {}
+  for _, b in ipairs(vim.api.nvim_list_bufs()) do
+    if valid_buf(b) then
+      table.insert(buf_cache, {
+        id = b,
+        icon = icons.get_icon(vim.bo[b].filetype) or "󰈤",
+        name = bufname(b),
+      })
+    end
+  end
+end
+
 function _G.winbar_buffers()
   local cur = vim.api.nvim_get_current_buf()
   local parts = {}
 
-  for _, b in ipairs(vim.api.nvim_list_bufs()) do
-    if valid_buf(b) then
-      local group =
-          (b == cur)
-          and (vim.bo[b].modified and "WinBarModified" or "WinBarActive")
-          or (vim.bo[b].modified and "WinBarModified" or "WinBarInactive")
+  for _, info in ipairs(buf_cache) do
+    local b = info.id
+    local group =
+        (b == cur)
+        and (vim.bo[b].modified and "WinBarModified" or "WinBarActive")
+        or (vim.bo[b].modified and "WinBarModified" or "WinBarInactive")
 
-      parts[#parts + 1] = string.format(
-        "%%%d@v:lua.goto_buf@%%#%s# %s %s %%X%%#Normal#",
-        b, group,
-        icons.get_icon(vim.bo[b].filetype) or "󰈤",
-        bufname(b)
-      )
-    end
+    parts[#parts + 1] = string.format(
+      "%%%d@v:lua.goto_buf@%%#%s# %s %s %%X%%#Normal#",
+      b, group,
+      info.icon,
+      info.name
+    )
   end
 
   return table.concat(parts)
 end
 
 local function update()
+  update_buf_cache()
   local cfg = vim.api.nvim_win_get_config(0)
 
   if cfg.relative ~= ""
@@ -53,21 +68,12 @@ local function update()
     return
   end
 
-  local count = 0
-
-  for _, b in ipairs(vim.api.nvim_list_bufs()) do
-    if valid_buf(b) then
-      count = count + 1
-      if count > 1 then
-        break
-      end
-    end
-  end
+  local count = #buf_cache
 
   vim.wo.winbar = count > 1
       and "%{%v:lua.winbar_buffers()%}"
       or nil
 end
 
-vim.api.nvim_create_autocmd({ "BufAdd", "BufDelete", "BufEnter", "BufModifiedSet", }, { callback = update })
+vim.api.nvim_create_autocmd({ "BufAdd", "BufDelete", "BufEnter", "BufModifiedSet", "OptionSet" }, { callback = update })
 update()

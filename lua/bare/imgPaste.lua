@@ -78,8 +78,14 @@ function M.delete()
     return
   end
 
-  local current_dir = vim.fn.expand('%:p:h')
-  local image_path = current_dir .. "/" .. path:gsub("^%./", "")
+  local current_dir = vim.fn.fnamemodify(vim.fn.expand('%:p:h'), ":p")
+  local image_path = vim.fn.fnamemodify(current_dir .. "/" .. path:gsub("^%./", ""), ":p")
+
+  -- Check that the target path resides inside the document's directory tree to prevent traversal deletion
+  if not vim.startswith(image_path, current_dir) then
+    print("Error: Blocked attempt to delete file outside the document directory.")
+    return
+  end
 
   if vim.fn.filereadable(image_path) == 1 then
     vim.fn.delete(image_path)

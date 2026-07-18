@@ -9,12 +9,23 @@ local modes = {
   t = { letter = "T", color = "#fab387" },
 }
 
-vim.api.nvim_set_hl(0, "StlText", { fg = "#cdd6f4", bg = "#292c3c" })
-vim.api.nvim_set_hl(0, "StlGit", { fg = "#f9e2af", bg = "#292c3c" })
-vim.api.nvim_set_hl(0, "StlLsp", { fg = "#a6e3a1", bg = "#292c3c" })
-vim.api.nvim_set_hl(0, "StlLspLoading", { fg = "#fab387", bg = "#292c3c" })
-vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#292c3c" })
-vim.api.nvim_set_hl(0, "StlFileModified", { fg = "#f2cdcd", bg = "#292c3c", bold = true })
+local function setup_highlights()
+  vim.api.nvim_set_hl(0, "StlText", { fg = "#cdd6f4", bg = "#292c3c" })
+  vim.api.nvim_set_hl(0, "StlGit", { fg = "#f9e2af", bg = "#292c3c" })
+  vim.api.nvim_set_hl(0, "StlLsp", { fg = "#a6e3a1", bg = "#292c3c" })
+  vim.api.nvim_set_hl(0, "StlLspLoading", { fg = "#fab387", bg = "#292c3c" })
+  vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#292c3c" })
+  vim.api.nvim_set_hl(0, "StlFileModified", { fg = "#f2cdcd", bg = "#292c3c", bold = true })
+
+  for _, m in pairs(modes) do
+    local suffix = m.letter:gsub("[^%w_]", "_")
+    vim.api.nvim_set_hl(0, "StlMode" .. suffix, { fg = "#292c3c", bg = m.color, bold = true })
+  end
+  vim.api.nvim_set_hl(0, "StlModeUnknown", { fg = "#292c3c", bg = "#6c7086", bold = true })
+end
+setup_highlights()
+
+vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
 
 local cache = { branch = nil, lsp_clients = {}, filepath = "", filesize = "" }
 local lsp_spinners = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
@@ -68,12 +79,12 @@ end
 
 _G.status_line = function()
   local mode = vim.api.nvim_get_mode().mode
-  local mode_info = modes[mode] or { letter = "?", color = "#6c7086" }
-  vim.api.nvim_set_hl(0, "StlMode", { fg = "#292c3c", bg = mode_info.color, bold = true })
+  local mode_info = modes[mode] or { letter = "Unknown", color = "#6c7086" }
+  local hl_suffix = mode_info.letter:gsub("[^%w_]", "_")
   local file_hl = vim.bo.modified and "%#StlFileModified# " or "%#StlText# "
 
   return table.concat({
-    "%#StlMode# ", mode_info.letter, " ",
+    "%#StlMode" .. hl_suffix .. "# ", mode_info.letter, " ",
     file_hl, cache.filepath, " ",
     cache.branch and ("%#StlGit#  " .. cache.branch .. " ") or "",
     "%=",

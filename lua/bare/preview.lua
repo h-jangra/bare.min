@@ -44,7 +44,7 @@ local function start_html(port)
     "httpd",
     "-f",
     "-p",
-    tostring(state.html_port),
+    "127.0.0.1:" .. tostring(state.html_port),
   }, {
     cwd = vim.fs.dirname(file),
   })

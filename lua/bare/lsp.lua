@@ -75,7 +75,8 @@ local servers = {
   jsonls = { cmd = { "vscode-json-language-server", "--stdio" }, ft = { "json" } },
   taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
   bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
-  yaml_lsp = { cmd = { "yaml-language-server", "--stdio" }, ft = { "yaml", "yml" } },
+  -- yaml_lsp = { cmd = { "yaml-language-server", "--stdio" }, ft = { "yaml", "yml" } },
+  ansiblels = { cmd = { "ansible-language-server", "--stdio" }, ft = { "yaml", "yml" } },
   tinymist = {
     cmd = { "tinymist", "lsp" },
     ft = { "typst" },
