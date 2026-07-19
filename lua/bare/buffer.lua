@@ -1,6 +1,13 @@
-vim.api.nvim_set_hl(0, "WinBarActive", { fg = "#7fb4ca", bg = "#2a2a37", bold = true })
-vim.api.nvim_set_hl(0, "WinBarInactive", { fg = "#54546d", bg = "#2a2a37", italic = true })
-vim.api.nvim_set_hl(0, "WinBarModified", { fg = "#2a2a37", bg = "#7fb4ca" })
+local function setup_highlights()
+  vim.api.nvim_set_hl(0, "WinBar", { bg = "NONE" })
+  vim.api.nvim_set_hl(0, "WinBarNC", { bg = "NONE" })
+  vim.api.nvim_set_hl(0, "WinBarActive", { link = "TabLineSel" })
+  vim.api.nvim_set_hl(0, "WinBarInactive", { link = "TabLine" })
+  vim.api.nvim_set_hl(0, "WinBarModifiedActive", { link = "TabLineSel" })
+  vim.api.nvim_set_hl(0, "WinBarModifiedInactive", { link = "TabLine" })
+end
+setup_highlights()
+vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
 
 local function bufname(buf)
   return vim.fn.fnamemodify(
@@ -12,10 +19,12 @@ end
 function _G.goto_buf(buf) vim.api.nvim_set_current_buf(buf) end
 
 local function valid_buf(buf)
+  local name = vim.api.nvim_buf_get_name(buf)
   return vim.bo[buf].buflisted
       and vim.api.nvim_buf_is_loaded(buf)
       and vim.bo[buf].buftype == ""
-      and vim.api.nvim_buf_get_name(buf) ~= ""
+      and name ~= ""
+      and not name:find("^term://")
 end
 
 local icons = require("bare.icons")
@@ -40,20 +49,23 @@ function _G.winbar_buffers()
 
   for _, info in ipairs(buf_cache) do
     local b = info.id
-    local group =
-        (b == cur)
-        and (vim.bo[b].modified and "WinBarModified" or "WinBarActive")
-        or (vim.bo[b].modified and "WinBarModified" or "WinBarInactive")
+    local is_cur = (b == cur)
+    local is_mod = vim.bo[b].modified
+    local group = is_cur and (is_mod and "WinBarModifiedActive" or "WinBarActive")
+                       or (is_mod and "WinBarModifiedInactive" or "WinBarInactive")
+
+    local mod_flag = is_mod and " ●" or ""
 
     parts[#parts + 1] = string.format(
-      "%%%d@v:lua.goto_buf@%%#%s# %s %s %%X%%#Normal#",
+      "%%%d@v:lua.goto_buf@%%#%s# %s %s%s %%X",
       b, group,
       info.icon,
-      info.name
+      info.name,
+      mod_flag
     )
   end
 
-  return table.concat(parts)
+  return table.concat(parts) .. "%#Normal#"
 end
 
 local function update()
@@ -70,7 +82,7 @@ local function update()
 
   local count = #buf_cache
 
-  vim.wo.winbar = count > 1
+  vim.wo.winbar = count > 0
       and "%{%v:lua.winbar_buffers()%}"
       or nil
 end

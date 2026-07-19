@@ -16,6 +16,9 @@ local function setup_highlights()
   vim.api.nvim_set_hl(0, "StlLspLoading", { fg = "#fab387", bg = "#292c3c" })
   vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#292c3c" })
   vim.api.nvim_set_hl(0, "StlFileModified", { fg = "#f2cdcd", bg = "#292c3c", bold = true })
+  vim.api.nvim_set_hl(0, "StlDiagErr", { fg = "#f38ba8", bg = "#292c3c", bold = true })
+  vim.api.nvim_set_hl(0, "StlDiagWarn", { fg = "#f9e2af", bg = "#292c3c" })
+  vim.api.nvim_set_hl(0, "StlDiagInfo", { fg = "#89b4fa", bg = "#292c3c" })
 
   for _, m in pairs(modes) do
     local suffix = m.letter:gsub("[^%w_]", "_")
@@ -77,6 +80,24 @@ local function get_lsp_status()
   return "%#StlLsp# " .. table.concat(cache.lsp_clients, ", ") .. " "
 end
 
+local function get_diag_status()
+  local diagnostics = vim.diagnostic.get(0)
+  if #diagnostics == 0 then return "" end
+  local err, warn, info = 0, 0, 0
+  for _, d in ipairs(diagnostics) do
+    if d.severity == vim.diagnostic.severity.ERROR then err = err + 1
+    elseif d.severity == vim.diagnostic.severity.WARN then warn = warn + 1
+    elseif d.severity == vim.diagnostic.severity.INFO then info = info + 1
+    end
+  end
+  local parts = {}
+  if err > 0 then table.insert(parts, "%#StlDiagErr#󰅚 " .. err) end
+  if warn > 0 then table.insert(parts, "%#StlDiagWarn#󰀦 " .. warn) end
+  if info > 0 then table.insert(parts, "%#StlDiagInfo#󰌵 " .. info) end
+  if #parts == 0 then return "" end
+  return table.concat(parts, " ") .. " "
+end
+
 _G.status_line = function()
   local mode = vim.api.nvim_get_mode().mode
   local mode_info = modes[mode] or { letter = "Unknown", color = "#6c7086" }
@@ -87,6 +108,7 @@ _G.status_line = function()
     "%#StlMode" .. hl_suffix .. "# ", mode_info.letter, " ",
     file_hl, cache.filepath, " ",
     cache.branch and ("%#StlGit#  " .. cache.branch .. " ") or "",
+    get_diag_status(),
     "%=",
     get_lsp_status(),
     "%#StlText#", vim.fn.line("$"), " ",
@@ -99,6 +121,7 @@ vim.o.statusline = "%!v:lua.status_line()"
 vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, { callback = update_file_info })
 vim.api.nvim_create_autocmd("BufEnter", { callback = update_git_branch })
 vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach", "BufEnter" }, { callback = update_lsp_clients })
+vim.api.nvim_create_autocmd({ "DiagnosticChanged", "BufEnter" }, { callback = function() vim.cmd("redrawstatus") end })
 vim.api.nvim_create_autocmd("LspProgress", {
   callback = function()
     spinner_idx = (spinner_idx % #lsp_spinners) + 1;

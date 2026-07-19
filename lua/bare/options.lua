@@ -8,6 +8,7 @@ opt.wrap = false
 opt.mouse = "a"
 opt.termguicolors = true
 opt.laststatus = 3
+opt.showtabline = 0
 
 opt.shortmess:append("IcFsW")
 opt.completeopt = { "menu", "menuone", "noselect" }
