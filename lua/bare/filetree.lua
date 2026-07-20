@@ -33,8 +33,8 @@ local state = {
 local MIN_WIDTH = 20
 local has_icons, icons = pcall(require, "bare.icons")
 local folder_icons = {
-  expanded  = { icon = " ", color = "#7ebae4" },
-  collapsed = { icon = " ", color = "#e4b87e" },
+  expanded  = { icon = "󰉋 ", color = "#7ebae4" },
+  collapsed = { icon = "󰉓 ", color = "#e4b87e" },
 }
 
 local function get_icon(name, is_dir, is_expanded)
@@ -46,7 +46,7 @@ local function get_icon(name, is_dir, is_expanded)
     local icon = (ext and icons.get_icon(ext)) or icons.get_icon(name)
     if icon and icon ~= "" then return icon .. " " end
   end
-  return "󰈔 "
+  return "󰈤 "
 end
 
 local function read_dir(path, cache)
@@ -68,26 +68,49 @@ local function read_dir(path, cache)
   return items
 end
 
-local function build_tree(path, depth, lines, map, extmarks, cache)
-  depth, lines, map, extmarks, cache = depth or 0, lines or {}, map or {}, extmarks or {}, cache or {}
-  for _, item in ipairs(read_dir(path, cache)) do
+local function build_tree(path, depth, lines, map, extmarks, cache, is_last_table)
+  depth = depth or 0
+  lines = lines or {}
+  map = map or {}
+  extmarks = extmarks or {}
+  cache = cache or {}
+  is_last_table = is_last_table or {}
+
+  local items = read_dir(path, cache)
+  local total_items = #items
+
+  for idx, item in ipairs(items) do
+    local is_last = (idx == total_items)
+    is_last_table[depth + 1] = is_last
+
+    local indent_str = ""
+    local guide_cols = {}
+    for d = 1, depth do
+      local current_col = #indent_str
+      if is_last_table[d] then
+        indent_str = indent_str .. "  "
+      else
+        indent_str = indent_str .. "│ "
+        table.insert(guide_cols, current_col)
+      end
+    end
+
     local is_expanded = state.expanded[item.path]
     local is_selected = state.selected[item.path]
     local icon = get_icon(item.name, item.is_dir, is_expanded)
-    local prefix = is_selected and "▌" or " "
+    local prefix = is_selected and "▌" or ""
 
     local git = state.git[item.path]
-    local git_icon = "  "
     local git_hl = nil
     if git then
-      if git:match("M") then
-        git_icon = "M "; git_hl = "FileTreeGitModified"
+      if git:match("M") or git:match("R") then
+        git_hl = "FileTreeGitModified"
       elseif git:match("A") then
-        git_icon = "A "; git_hl = "FileTreeGitAdded"
-      elseif git:match("%?%?") then
-        git_icon = "● "; git_hl = "FileTreeGitUntracked"
+        git_hl = "FileTreeGitAdded"
+      elseif git:match("%?%?") or git:match("U") then
+        git_hl = "FileTreeGitUntracked"
       elseif git:match("D") then
-        git_icon = "D "; git_hl = "FileTreeGitDeleted"
+        git_hl = "FileTreeGitDeleted"
       end
     end
 
@@ -107,7 +130,9 @@ local function build_tree(path, depth, lines, map, extmarks, cache)
       if #full_parts > 1 then display_name = table.concat(full_parts, "/") end
     end
 
-    local line_text = string.rep("  ", depth) .. prefix .. git_icon .. icon .. display_name
+    -- 1 space padding on left margin so items don't stick to the left side
+    local left_pad = " "
+    local line_text = left_pad .. indent_str .. prefix .. icon .. display_name
     table.insert(lines, line_text)
     table.insert(map, {
       path = item.path,
@@ -116,33 +141,52 @@ local function build_tree(path, depth, lines, map, extmarks, cache)
       parts = full_parts
     })
 
-    local indent_len = depth * 2
-    if git_hl then
+    local line_idx = #lines - 1
+    local pad_bytes = #left_pad
+
+    -- Tree guide lines extmarks
+    for _, g_col in ipairs(guide_cols) do
       table.insert(extmarks, {
-        line = #lines - 1,
-        col = indent_len + #prefix,
-        end_col = indent_len + #prefix + #git_icon,
-        hl = git_hl
+        line = line_idx,
+        col = pad_bytes + g_col,
+        end_col = pad_bytes + g_col + 3, -- 3 bytes for UTF-8 '│'
+        hl = "FileTreeIndentGuide"
       })
     end
 
-    local icon_col = indent_len + #prefix + #git_icon
+    -- Selection prefix highlight
+    if is_selected then
+      local p_col = pad_bytes + #indent_str
+      table.insert(extmarks, {
+        line = line_idx,
+        col = p_col,
+        end_col = p_col + #prefix,
+        hl = "FileTreeSelected"
+      })
+    end
+
+    -- Icon extmark
+    local icon_col = pad_bytes + #indent_str + #prefix
     local file_ext = item.name:match("^.+%.(.+)$") or item.name
+    local icon_hl = item.is_dir and ("FileTreeFolder" .. (is_expanded and "Expanded" or "Collapsed")) or
+        (has_icons and icons.get_hl(file_ext))
+
     table.insert(extmarks, {
-      line = #lines - 1,
+      line = line_idx,
       col = icon_col,
       end_col = icon_col + #icon,
-      hl = item.is_dir and ("FileTreeFolder" .. (is_expanded and "Expanded" or "Collapsed")) or
-      (has_icons and icons.get_hl(file_ext))
+      hl = git_hl or icon_hl
     })
 
-    if item.name:sub(1, 1) == "." then
-      local text_col = icon_col + #icon
+    -- Text extmark: Zed editor style coloring based on git status
+    local text_col = icon_col + #icon
+    local text_hl = git_hl or (item.name:sub(1, 1) == "." and "FileTreeHidden" or nil)
+    if text_hl then
       table.insert(extmarks, {
-        line = #lines - 1,
+        line = line_idx,
         col = text_col,
         end_col = text_col + #display_name,
-        hl = "FileTreeHidden"
+        hl = text_hl
       })
     end
 
@@ -156,19 +200,24 @@ local function build_tree(path, depth, lines, map, extmarks, cache)
       next_path = current.path
     end
 
-    if item.is_dir and is_expanded then build_tree(next_path, depth + 1, lines, map, extmarks, cache) end
+    if item.is_dir and is_expanded then
+      build_tree(next_path, depth + 1, lines, map, extmarks, cache, is_last_table)
+    end
   end
   return lines, map, extmarks
 end
 
 local function setup_highlights()
+  vim.api.nvim_set_hl(0, "FileTreeRoot", { fg = "#7aa2f7", bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeIndentGuide", { fg = "#3b4261" })
   vim.api.nvim_set_hl(0, "FileTreeFolderExpanded", { fg = folder_icons.expanded.color, bold = true })
   vim.api.nvim_set_hl(0, "FileTreeFolderCollapsed", { fg = folder_icons.collapsed.color, bold = true })
-  vim.api.nvim_set_hl(0, "FileTreeGitModified", { fg = "#e0af68" })
-  vim.api.nvim_set_hl(0, "FileTreeGitAdded", { fg = "#9ece6a" })
-  vim.api.nvim_set_hl(0, "FileTreeGitUntracked", { fg = "#7dcfff" })
-  vim.api.nvim_set_hl(0, "FileTreeGitDeleted", { fg = "#f7768e" })
-  vim.api.nvim_set_hl(0, "FileTreeHidden", { fg = "#6c7086", italic = true })
+  vim.api.nvim_set_hl(0, "FileTreeGitModified", { fg = "#e0af68", bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeGitAdded", { fg = "#9ece6a", bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeGitUntracked", { fg = "#7dcfff", bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeGitDeleted", { fg = "#f7768e", bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeHidden", { fg = "#565f89", italic = true })
+  vim.api.nvim_set_hl(0, "FileTreeSelected", { fg = "#bb9af7", bold = true })
 end
 
 local function get_item()
@@ -190,7 +239,19 @@ local function update_git_status(cb)
       for line in obj.stdout:gmatch("[^\r\n]+") do
         local status = line:sub(1, 2)
         local file = line:sub(4)
-        git[root .. "/" .. file] = status
+        if file:sub(1, 1) == '"' and file:sub(-1) == '"' then
+          file = file:sub(2, -2)
+        end
+        local full_path = root .. "/" .. file
+        git[full_path] = status
+
+        local parent = vim.fn.fnamemodify(full_path, ":h")
+        while parent and #parent >= #root and parent ~= root do
+          if not git[parent] then
+            git[parent] = status
+          end
+          parent = vim.fn.fnamemodify(parent, ":h")
+        end
       end
     end
     vim.schedule(function()
@@ -211,8 +272,9 @@ local function render(update_git)
   end
 
   local cache = {}
-  local lines, map, extmarks = build_tree(state.root or vim.fn.getcwd(), 0, nil, nil, nil, cache)
-  table.insert(lines, 1, " " .. vim.fn.fnamemodify(state.root or vim.fn.getcwd(), ":~") .. "/")
+  local lines, map, extmarks = build_tree(state.root or vim.fn.getcwd(), 0, nil, nil, nil, cache, {})
+  local root_text = " 󰉋 " .. vim.fn.fnamemodify(state.root or vim.fn.getcwd(), ":~") .. "/"
+  table.insert(lines, 1, root_text)
 
   state.line_to_path = map
   vim.bo[state.buf].modifiable = true
@@ -220,6 +282,12 @@ local function render(update_git)
   vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
 
   local ns = vim.api.nvim_create_namespace("filetree")
+  vim.api.nvim_buf_set_extmark(state.buf, ns, 0, 0, {
+    end_row = 0,
+    end_col = #root_text,
+    hl_group = "FileTreeRoot"
+  })
+
   for _, m in ipairs(extmarks) do
     if m.hl then
       vim.api.nvim_buf_set_extmark(state.buf, ns, m.line + 1, m.col, {
@@ -253,13 +321,18 @@ local function open_file(split_cmd)
     state.expanded[item.path] = not state.expanded[item.path]
     render(true)
   else
-    local win = vim.api.nvim_get_current_win()
+    local target_win = nil
     for _, w in ipairs(vim.api.nvim_list_wins()) do
       if w ~= state.win and vim.api.nvim_win_get_config(w).relative == "" then
-        win = w; break
+        target_win = w; break
       end
     end
-    vim.api.nvim_set_current_win(win)
+    if not target_win then
+      vim.cmd("wincmd v")
+      target_win = vim.api.nvim_get_current_win()
+    else
+      vim.api.nvim_set_current_win(target_win)
+    end
     if split_cmd then vim.cmd(split_cmd) end
     vim.cmd("edit " .. vim.fn.fnameescape(item.path))
   end
@@ -590,6 +663,15 @@ function M.setup(opts)
     { callback = function()
       setup_highlights(); if state.buf and vim.api.nvim_buf_is_valid(state.buf) then render(false) end
     end })
+  vim.api.nvim_create_autocmd({ "BufWritePost", "FocusGained" }, {
+    callback = function()
+      if state.win and vim.api.nvim_win_is_valid(state.win) then
+        update_git_status(function()
+          if state.buf and vim.api.nvim_buf_is_valid(state.buf) then render(false) end
+        end)
+      end
+    end
+  })
   vim.api.nvim_create_user_command("FileTree", function() M.toggle() end, {})
   vim.api.nvim_create_user_command("FileTreeFind", function() M.reveal() end, {})
 end
