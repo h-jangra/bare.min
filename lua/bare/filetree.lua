@@ -39,14 +39,16 @@ local folder_icons = {
 
 local function get_icon(name, is_dir, is_expanded)
   if is_dir then
-    return (is_expanded and folder_icons.expanded or folder_icons.collapsed).icon
+    local icon = (is_expanded and folder_icons.expanded or folder_icons.collapsed).icon
+    local hl = "FileTreeFolder" .. (is_expanded and "Expanded" or "Collapsed")
+    return icon, hl
   end
   if has_icons then
-    local ext = name:match("^.+%.(.+)$")
-    local icon = (ext and icons.get_icon(ext)) or icons.get_icon(name)
-    if icon and icon ~= "" then return icon .. " " end
+    local ft = vim.filetype.match({ filename = name }) or name:match("%.([^.]+)$")
+    local icon, hl = icons.get(ft)
+    if icon and icon ~= "" then return icon .. " ", hl end
   end
-  return "󰈤 "
+  return "󰈤 ", "FileIconDefault"
 end
 
 local function read_dir(path, cache)
@@ -97,7 +99,7 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
 
     local is_expanded = state.expanded[item.path]
     local is_selected = state.selected[item.path]
-    local icon = get_icon(item.name, item.is_dir, is_expanded)
+    local icon, icon_hl = get_icon(item.name, item.is_dir, is_expanded)
     local prefix = is_selected and "▌" or ""
 
     local git = state.git[item.path]
@@ -167,10 +169,6 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
 
     -- Icon extmark
     local icon_col = pad_bytes + #indent_str + #prefix
-    local file_ext = item.name:match("^.+%.(.+)$") or item.name
-    local icon_hl = item.is_dir and ("FileTreeFolder" .. (is_expanded and "Expanded" or "Collapsed")) or
-        (has_icons and icons.get_hl(file_ext))
-
     table.insert(extmarks, {
       line = line_idx,
       col = icon_col,
