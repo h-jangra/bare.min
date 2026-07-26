@@ -53,7 +53,7 @@ M.icons = {
   scss = { icon = "", color = "#cd6799" },
   sass = { icon = "", color = "#cd6799" },
   log = { icon = "", color = "#51a0cf" },
-  default = { icon = "󰈤", color = "#6d8086" },
+  default = { icon = "", color = "#a8b9cc" },
 }
 
 local aliases = {

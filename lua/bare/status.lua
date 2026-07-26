@@ -13,12 +13,10 @@ local function setup_highlights()
   vim.api.nvim_set_hl(0, "StlText", { fg = "#cdd6f4", bg = "#292c3c" })
   vim.api.nvim_set_hl(0, "StlGit", { fg = "#f9e2af", bg = "#292c3c" })
   vim.api.nvim_set_hl(0, "StlLsp", { fg = "#a6e3a1", bg = "#292c3c" })
-  vim.api.nvim_set_hl(0, "StlLspLoading", { fg = "#fab387", bg = "#292c3c" })
   vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#292c3c" })
   vim.api.nvim_set_hl(0, "StlFileModified", { fg = "#f2cdcd", bg = "#292c3c", bold = true })
   vim.api.nvim_set_hl(0, "StlDiagErr", { fg = "#f38ba8", bg = "#292c3c", bold = true })
   vim.api.nvim_set_hl(0, "StlDiagWarn", { fg = "#f9e2af", bg = "#292c3c" })
-  vim.api.nvim_set_hl(0, "StlDiagInfo", { fg = "#89b4fa", bg = "#292c3c" })
 
   for _, m in pairs(modes) do
     local suffix = m.letter:gsub("[^%w_]", "_")
@@ -27,107 +25,101 @@ local function setup_highlights()
   vim.api.nvim_set_hl(0, "StlModeUnknown", { fg = "#292c3c", bg = "#6c7086", bold = true })
 end
 setup_highlights()
-
 vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
 
-local cache = { branch = nil, lsp_clients = {}, filepath = "", filesize = "" }
-local lsp_spinners = { "⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏" }
-local spinner_idx = 0
+local function get_git_branch()
+  local file = vim.api.nvim_buf_get_name(0)
+  local dir = file ~= "" and vim.fs.dirname(file) or vim.fn.getcwd()
+  local root = vim.fs.root(dir, ".git")
+  if not root then return "" end
 
-local function update_git_branch()
-  cache.branch = vim.b.gitsigns_head
-end
+  local git_dir = root .. "/.git"
+  local stat = vim.uv.fs_stat(git_dir)
+  if not stat then return "" end
 
-local function update_lsp_clients()
-  cache.lsp_clients = {}
-  local buf_clients = vim.lsp.get_clients({ bufnr = vim.api.nvim_get_current_buf() })
-  for _, client in ipairs(buf_clients) do
-    table.insert(cache.lsp_clients, client.name)
-  end
-  vim.schedule(function()
-    vim.cmd("redrawstatus")
-  end)
-end
-
-local function shorten_path(path)
-  if path == "" then return "[No Name]" end
-  return vim.fn.pathshorten(vim.fn.fnamemodify(path, ":~:."))
-end
-
-local function update_file_info()
-  local path = vim.fn.fnamemodify(vim.fn.expand("%"), ":~:.")
-  cache.filepath = shorten_path(path)
-  local size = vim.fn.getfsize(vim.fn.expand("%:p"))
-  if size and size >= 0 then
-    local suffixes = { "B", "K", "M", "G" }
-    local i = 1
-    while size > 1024 and i < #suffixes do
-      size = size / 1024
-      i = i + 1
+  if stat.type == "file" then
+    local f = io.open(git_dir, "r")
+    if f then
+      local line = f:read("*l")
+      f:close()
+      local real_dir = line and line:match("^gitdir:%s*(.+)")
+      if real_dir then git_dir = real_dir end
     end
-    cache.filesize = string.format("%.1f%s", size, suffixes[i])
-  else
-    cache.filesize = nil
   end
-end
 
-local function get_lsp_status()
-  if #cache.lsp_clients == 0 then return "" end
-  if vim.lsp.status() ~= "" then
-    spinner_idx = (spinner_idx % #lsp_spinners) + 1
-    return "%#StlLspLoading#" .. lsp_spinners[spinner_idx] .. " "
-  end
-  return "%#StlLsp# " .. table.concat(cache.lsp_clients, ", ") .. " "
+  local f = io.open(git_dir .. "/HEAD", "r")
+  if not f then return "" end
+  local line = f:read("*l")
+  f:close()
+  if not line then return "" end
+
+  local branch = line:match("ref: refs/heads/(.+)") or line:sub(1, 7)
+  return "%#StlGit#  " .. vim.trim(branch)
 end
 
 local function get_diag_status()
-  local diagnostics = vim.diagnostic.get(0)
-  if #diagnostics == 0 then return "" end
-  local err, warn, info = 0, 0, 0
-  for _, d in ipairs(diagnostics) do
-    if d.severity == vim.diagnostic.severity.ERROR then err = err + 1
-    elseif d.severity == vim.diagnostic.severity.WARN then warn = warn + 1
-    elseif d.severity == vim.diagnostic.severity.INFO then info = info + 1
-    end
+  local count = vim.diagnostic.count(0)
+  local err = count[vim.diagnostic.severity.ERROR] or 0
+  local warn = count[vim.diagnostic.severity.WARN] or 0
+  local str = ""
+  if err > 0 then str = str .. " %#StlDiagErr#󰅚 " .. err end
+  if warn > 0 then str = str .. " %#StlDiagWarn#󰀦 " .. warn end
+  return str
+end
+
+local function get_lsp_names()
+  local clients = vim.lsp.get_clients({ bufnr = 0 })
+  if #clients == 0 then return "" end
+  local names = {}
+  for _, c in ipairs(clients) do
+    table.insert(names, c.name)
   end
-  local parts = {}
-  if err > 0 then table.insert(parts, "%#StlDiagErr#󰅚 " .. err) end
-  if warn > 0 then table.insert(parts, "%#StlDiagWarn#󰀦 " .. warn) end
-  if info > 0 then table.insert(parts, "%#StlDiagInfo#󰌵 " .. info) end
-  if #parts == 0 then return "" end
-  return table.concat(parts, " ") .. " "
+  return "%#StlLsp# " .. table.concat(names, ", ")
+end
+
+local function get_file_size()
+  local size = vim.fn.getfsize(vim.api.nvim_buf_get_name(0))
+  if size <= 0 then
+    return ""
+  end
+
+  local units = { "B", "K", "M", "G" }
+  local i = 1
+  while size >= 1024 and i < #units do
+    size = size / 1024
+    i = i + 1
+  end
+
+  return (" %%#StlFile#%.1f%s"):format(size, units[i])
 end
 
 _G.status_line = function()
   local mode = vim.api.nvim_get_mode().mode
-  local mode_info = modes[mode] or { letter = "Unknown", color = "#6c7086" }
+  local mode_info = modes[mode] or modes.n
   local hl_suffix = mode_info.letter:gsub("[^%w_]", "_")
+
+  local file = vim.fn.expand("%:~:.")
+  if file == "" then
+    file = "[No Name]"
+  elseif vim.bo.buftype == "terminal" then
+    file = file:find("fzf") and "FZF" or "Floaterm"
+  end
   local file_hl = vim.bo.modified and "%#StlFileModified# " or "%#StlText# "
 
   return table.concat({
     "%#StlMode" .. hl_suffix .. "# ", mode_info.letter, " ",
-    file_hl, cache.filepath, " ",
-    cache.branch and ("%#StlGit#  " .. cache.branch .. " ") or "",
+    file_hl, file, " ",
+    get_git_branch(),
     get_diag_status(),
     "%=",
-    get_lsp_status(),
-    "%#StlText#", vim.fn.line("$"), " ",
-    cache.filesize and ("%#StlFile#" .. cache.filesize .. " ") or "",
+    get_lsp_names(),
+    get_file_size(),
+    "%#StlText# %l|%L ",
   })
 end
 
 vim.o.statusline = "%!v:lua.status_line()"
 
-vim.api.nvim_create_autocmd({ "BufEnter", "BufWritePost" }, { callback = update_file_info })
-vim.api.nvim_create_autocmd("BufEnter", { callback = update_git_branch })
-vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach", "BufEnter" }, { callback = update_lsp_clients })
-vim.api.nvim_create_autocmd({ "DiagnosticChanged", "BufEnter" }, { callback = function() vim.cmd("redrawstatus") end })
-vim.api.nvim_create_autocmd("LspProgress", {
-  callback = function()
-    spinner_idx = (spinner_idx % #lsp_spinners) + 1;
-    vim.schedule(function()
-      vim.cmd("redrawstatus")
-    end)
-  end,
+vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach" }, {
+  callback = function() vim.cmd("redrawstatus") end,
 })
-vim.api.nvim_create_autocmd("ModeChanged", { callback = function() vim.cmd("redrawstatus") end })

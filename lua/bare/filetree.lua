@@ -33,8 +33,8 @@ local state = {
 local MIN_WIDTH = 20
 local has_icons, icons = pcall(require, "bare.icons")
 local folder_icons = {
-  expanded  = { icon = "󰉋 ", color = "#7ebae4" },
-  collapsed = { icon = "󰉓 ", color = "#e4b87e" },
+  expanded  = { icon = " ", color = "#89b4fa" },
+  collapsed = { icon = " ", color = "#89b4fa" },
 }
 
 local function get_icon(name, is_dir, is_expanded)
@@ -83,23 +83,35 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
 
   for idx, item in ipairs(items) do
     local is_last = (idx == total_items)
-    is_last_table[depth + 1] = is_last
+    is_last_table[depth] = is_last
 
     local indent_str = ""
-    local guide_cols = {}
-    for d = 1, depth do
-      local current_col = #indent_str
+    local guide_extmarks = {}
+
+    for d = 0, depth - 1 do
+      local start_col = #indent_str
       if is_last_table[d] then
-        indent_str = indent_str .. "  "
+        indent_str = indent_str .. "   "
       else
-        indent_str = indent_str .. "│ "
-        table.insert(guide_cols, current_col)
+        indent_str = indent_str .. " │ "
+        table.insert(guide_extmarks, { col = start_col + 1, len = 3 })
       end
     end
 
+    local connector_start = #indent_str
+    if is_last then
+      indent_str = indent_str .. " └╴"
+    else
+      indent_str = indent_str .. " ├╴"
+    end
+    table.insert(guide_extmarks, { col = connector_start + 1, len = 6 })
+
     local is_expanded = state.expanded[item.path]
     local is_selected = state.selected[item.path]
+    local is_hidden = item.name:sub(1, 1) == "."
     local icon, icon_hl = get_icon(item.name, item.is_dir, is_expanded)
+
+    if is_hidden then icon_hl = "FileTreeHidden" end
     local prefix = is_selected and "▌" or ""
 
     local git = state.git[item.path]
@@ -132,9 +144,7 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
       if #full_parts > 1 then display_name = table.concat(full_parts, "/") end
     end
 
-    -- 1 space padding on left margin so items don't stick to the left side
-    local left_pad = " "
-    local line_text = left_pad .. indent_str .. prefix .. icon .. display_name
+    local line_text = indent_str .. prefix .. icon .. display_name
     table.insert(lines, line_text)
     table.insert(map, {
       path = item.path,
@@ -144,21 +154,20 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
     })
 
     local line_idx = #lines - 1
-    local pad_bytes = #left_pad
 
     -- Tree guide lines extmarks
-    for _, g_col in ipairs(guide_cols) do
+    for _, g in ipairs(guide_extmarks) do
       table.insert(extmarks, {
         line = line_idx,
-        col = pad_bytes + g_col,
-        end_col = pad_bytes + g_col + 3, -- 3 bytes for UTF-8 '│'
+        col = g.col,
+        end_col = g.col + g.len,
         hl = "FileTreeIndentGuide"
       })
     end
 
     -- Selection prefix highlight
     if is_selected then
-      local p_col = pad_bytes + #indent_str
+      local p_col = #indent_str
       table.insert(extmarks, {
         line = line_idx,
         col = p_col,
@@ -168,7 +177,7 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
     end
 
     -- Icon extmark
-    local icon_col = pad_bytes + #indent_str + #prefix
+    local icon_col = #indent_str + #prefix
     table.insert(extmarks, {
       line = line_idx,
       col = icon_col,
@@ -176,9 +185,11 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
       hl = git_hl or icon_hl
     })
 
-    -- Text extmark: Zed editor style coloring based on git status
+    -- Text extmark: Zed style git status, folder highlight, or hidden file
     local text_col = icon_col + #icon
-    local text_hl = git_hl or (item.name:sub(1, 1) == "." and "FileTreeHidden" or nil)
+    local text_hl = is_hidden and "FileTreeHidden"
+        or git_hl
+        or (item.is_dir and (is_expanded and "FileTreeFolderExpanded" or "FileTreeFolderCollapsed"))
     if text_hl then
       table.insert(extmarks, {
         line = line_idx,
@@ -206,7 +217,7 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
 end
 
 local function setup_highlights()
-  vim.api.nvim_set_hl(0, "FileTreeRoot", { fg = "#7aa2f7", bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeRoot", { fg = "#89b4fa", bold = true })
   vim.api.nvim_set_hl(0, "FileTreeIndentGuide", { fg = "#3b4261" })
   vim.api.nvim_set_hl(0, "FileTreeFolderExpanded", { fg = folder_icons.expanded.color, bold = true })
   vim.api.nvim_set_hl(0, "FileTreeFolderCollapsed", { fg = folder_icons.collapsed.color, bold = true })
@@ -222,6 +233,18 @@ local function get_item()
   if not (state.win and vim.api.nvim_win_is_valid(state.win)) then return end
   local row = vim.api.nvim_win_get_cursor(state.win)[1]
   return row > 1 and state.line_to_path[row - 1]
+end
+
+local function current_dir()
+  local item = get_item()
+  return (item and (item.is_dir and item.path or vim.fn.fnamemodify(item.path, ":h"))) or (state.root or vim.fn.getcwd())
+end
+
+local function selected_paths(item)
+  local paths = {}
+  for p in pairs(state.selected) do table.insert(paths, p) end
+  if #paths == 0 and item then table.insert(paths, item.path) end
+  return paths
 end
 
 local function update_git_status(cb)
@@ -271,7 +294,10 @@ local function render(update_git)
 
   local cache = {}
   local lines, map, extmarks = build_tree(state.root or vim.fn.getcwd(), 0, nil, nil, nil, cache, {})
-  local root_text = " 󰉋 " .. vim.fn.fnamemodify(state.root or vim.fn.getcwd(), ":~") .. "/"
+  local root_path = state.root or vim.fn.getcwd()
+  local root_name = vim.fn.fnamemodify(root_path, ":t")
+  if root_name == "" then root_name = root_path end
+  local root_text = "  " .. root_name
   table.insert(lines, 1, root_text)
 
   state.line_to_path = map
@@ -312,6 +338,47 @@ local function render(update_git)
   end
 end
 
+local function ensure_editor_options(win)
+  if win and vim.api.nvim_win_is_valid(win) then
+    local wo = vim.wo[win]
+    wo.number = true
+    wo.relativenumber = true
+    wo.signcolumn = "yes:1"
+    wo.wrap = false
+  end
+  return win
+end
+
+local function get_target_win()
+  local target = nil
+  local prev = vim.fn.win_getid(vim.fn.winnr("#"))
+  if prev > 0 and prev ~= state.win and vim.api.nvim_win_is_valid(prev) and vim.api.nvim_win_get_config(prev).relative == "" then
+    local bo = vim.bo[vim.api.nvim_win_get_buf(prev)]
+    if bo.filetype ~= "filetree" and bo.buftype == "" then target = prev end
+  end
+
+  if not target then
+    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+      if w ~= state.win and vim.api.nvim_win_get_config(w).relative == "" then
+        local bo = vim.bo[vim.api.nvim_win_get_buf(w)]
+        if bo.filetype ~= "filetree" and bo.buftype == "" then
+          target = w; break
+        end
+      end
+    end
+  end
+
+  if not target and state.win and vim.api.nvim_win_is_valid(state.win) then
+    vim.api.nvim_set_current_win(state.win)
+    vim.cmd("rightbelow vsplit")
+    target = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_width(state.win, state.width)
+  end
+
+  target = target or vim.api.nvim_get_current_win()
+  return ensure_editor_options(target)
+end
+
 local function open_file(split_cmd)
   local item = get_item()
   if not item then return end
@@ -319,20 +386,11 @@ local function open_file(split_cmd)
     state.expanded[item.path] = not state.expanded[item.path]
     render(true)
   else
-    local target_win = nil
-    for _, w in ipairs(vim.api.nvim_list_wins()) do
-      if w ~= state.win and vim.api.nvim_win_get_config(w).relative == "" then
-        target_win = w; break
-      end
-    end
-    if not target_win then
-      vim.cmd("wincmd v")
-      target_win = vim.api.nvim_get_current_win()
-    else
-      vim.api.nvim_set_current_win(target_win)
-    end
+    local target_win = get_target_win()
+    vim.api.nvim_set_current_win(target_win)
     if split_cmd then vim.cmd(split_cmd) end
     vim.cmd("edit " .. vim.fn.fnameescape(item.path))
+    ensure_editor_options(vim.api.nvim_get_current_win())
   end
 end
 
@@ -367,21 +425,9 @@ local function toggle_select()
   render(false)
 end
 
-local function clear_selection()
-  state.selected = {}
-  render(false)
-end
-
-local function cd_up()
-  state.root = vim.fn.fnamemodify(state.root or vim.fn.getcwd(), ":h")
-  render(true)
-end
-
-local function cd_node()
-  local item = get_item()
-  if item and item.is_dir then
-    state.root = item.path
-    render(true)
+local function change_root(dir)
+  if dir then
+    state.root = dir; render(true)
   end
 end
 
@@ -395,27 +441,25 @@ end
 
 local function show_help()
   local help_lines = {
-    " ------------------------------------------ ",
-    "             FileTree Keymaps               ",
-    " ------------------------------------------ ",
-    "  <CR>, l  : Open file / Expand folder",
-    "  s / v / t: Open in Split / VSplit / Tab",
-    "  h        : Collapse folder / Parent",
-    "  - / C    : Up to parent / Set root",
-    "  a / A    : New File / Folder",
-    "  d / r    : Delete / Rename",
-    "  y / x / p: Copy / Cut / Paste",
-    "  Y / gy   : Copy Relative / Absolute Path",
-    "  m / M    : Select item / Clear selection",
-    "  H        : Toggle Hidden files",
-    "  R        : Refresh tree",
-    "  q, <Esc> : Close FileTree",
-    "  ?        : Show this Help Window",
-    " ------------------------------------------ ",
+    "  <CR>, l   Open / Expand",
+    "  h         Collapse",
+    "  -         Parent dir",
+    "  C         Set Root dir",
+    "",
+    "  s v t     Split / VSplit / Tab",
+    "  a A       New File / Folder",
+    "  r d       Rename / Delete",
+    "  y x p     Copy / Cut / Paste",
+    "  Y gy      Copy Path / Absolute Path",
+    "  m M       Select / Clear",
+    "  H         Hidden Files",
+    "  R         Refresh",
+    "  q         Close",
+    "  ?         Help",
   }
   local ui = require("bare.ui")
   local buf, win = ui.float({
-    width = 46,
+    width = 40,
     height = #help_lines,
     border = "rounded",
     title = " Help ",
@@ -424,15 +468,13 @@ local function show_help()
   vim.bo[buf].modifiable = false
   vim.bo[buf].bufhidden = "wipe"
   local opts = { buffer = buf, silent = true, nowait = true }
-  vim.keymap.set("n", "q", function() vim.api.nvim_win_close(win, true) end, opts)
-  vim.keymap.set("n", "<Esc>", function() vim.api.nvim_win_close(win, true) end, opts)
-  vim.keymap.set("n", "?", function() vim.api.nvim_win_close(win, true) end, opts)
+  for _, k in ipairs({ "q", "<Esc>", "?" }) do
+    vim.keymap.set("n", k, function() vim.api.nvim_win_close(win, true) end, opts)
+  end
 end
 
 local function create_file()
-  local item = get_item()
-  local parent = (item and (item.is_dir and item.path or vim.fn.fnamemodify(item.path, ":h"))) or
-  (state.root or vim.fn.getcwd())
+  local parent = current_dir()
   vim.ui.input({ prompt = "New file: " }, function(name)
     if not name or name == "" then return end
     local path = parent .. "/" .. name
@@ -445,9 +487,7 @@ local function create_file()
 end
 
 local function create_dir()
-  local item = get_item()
-  local parent = (item and (item.is_dir and item.path or vim.fn.fnamemodify(item.path, ":h"))) or
-  (state.root or vim.fn.getcwd())
+  local parent = current_dir()
   vim.ui.input({ prompt = "New directory: " }, function(name)
     if not (name and name ~= "") then return end
     vim.fn.mkdir(parent .. "/" .. name, "p")
@@ -458,9 +498,7 @@ end
 local function delete_item()
   local item = get_item()
   if not item then return end
-  local paths = {}
-  for p in pairs(state.selected) do table.insert(paths, p) end
-  if #paths == 0 then table.insert(paths, item.path) end
+  local paths = selected_paths(item)
 
   vim.ui.input({ prompt = "Delete " .. #paths .. " items? (y/N): " }, function(confirm)
     if confirm and confirm:lower() == "y" then
@@ -544,18 +582,14 @@ end
 local function copy_item(move)
   local item = get_item()
   if not item then return end
-  local paths = {}
-  for p in pairs(state.selected) do table.insert(paths, p) end
-  if #paths == 0 then table.insert(paths, item.path) end
+  local paths = selected_paths(item)
   state.clipboard = { paths = paths, move = move }
   vim.notify((move and "Cut " or "Copied ") .. #paths .. " items")
 end
 
 local function paste_item()
   if not state.clipboard then return end
-  local item = get_item()
-  local dest = (item and (item.is_dir and item.path or vim.fn.fnamemodify(item.path, ":h"))) or
-  (state.root or vim.fn.getcwd())
+  local dest = current_dir()
   for _, src in ipairs(state.clipboard.paths) do
     local target = dest .. "/" .. vim.fn.fnamemodify(src, ":t")
     if state.clipboard.move then
@@ -569,37 +603,43 @@ local function paste_item()
   render(true)
 end
 
+local function resize(delta)
+  state.width = math.max(MIN_WIDTH, state.width + delta)
+  vim.cmd("vertical resize " .. state.width)
+end
+
 local function setup_buffer()
   state.buf = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_set_name(state.buf, "FileTree")
   local bo = vim.bo[state.buf]
-  bo.bufhidden, bo.filetype, bo.buftype, bo.swapfile, bo.buflisted = "wipe", "filetree", "nofile", false, false
+  bo.bufhidden, bo.filetype, bo.buftype, bo.swapfile, bo.buflisted = "hide", "filetree", "nofile", false, false
   local opts = { buffer = state.buf, silent = true, nowait = true }
   local maps = {
-    { "<CR>", function() open_file() end },
-    { "l",    function() open_file() end },
-    { "s",    function() open_file("split") end },
-    { "v",    function() open_file("vsplit") end },
-    { "t",    function() open_file("tabnew") end },
-    { "h",    collapse },
-    { "-",    cd_up },
-    { "C",    cd_node },
-    { "H",    function()
+    { "<CR>",          function() open_file() end },
+    { "l",             function() open_file() end },
+    { "<2-LeftMouse>", function() open_file() end },
+    { "s",             function() open_file("split") end },
+    { "v",             function() open_file("vsplit") end },
+    { "t",             function() open_file("tabnew") end },
+    { "h",             collapse },
+    { "-",             function() change_root(vim.fn.fnamemodify(state.root or vim.fn.getcwd(), ":h")) end },
+    { "C", function()
+      local item = get_item(); if item and item.is_dir then change_root(item.path) end
+    end },
+    { "H", function()
       state.show_hidden = not state.show_hidden; render(true)
     end },
-    { "q",    M.close }, { "<Esc>", M.close },
+    { "q", M.close }, { "<Esc>", M.close },
     { "a", create_file }, { "A", create_dir },
     { "d", delete_item }, { "r", rename_item }, { "R", function() render(true) end },
-    { "m", toggle_select }, { "M", clear_selection },
+    { "m", toggle_select }, { "M", function()
+    state.selected = {}; render(false)
+  end },
     { "y", function() copy_item(false) end }, { "x", function() copy_item(true) end }, { "p", paste_item },
     { "Y", function() copy_path(true) end }, { "gy", function() copy_path(false) end },
     { "?", show_help },
-    { ">", function()
-      state.width = state.width + 5; vim.cmd("vertical resize " .. state.width)
-    end },
-    { "<", function()
-      state.width = math.max(MIN_WIDTH, state.width - 5); vim.cmd("vertical resize " .. state.width)
-    end },
+    { ">", function() resize(5) end },
+    { "<", function() resize(-5) end },
   }
   for _, m in ipairs(maps) do vim.keymap.set("n", m[1], m[2], opts) end
 end
@@ -658,9 +698,11 @@ function M.setup(opts)
   vim.keymap.set("n", "<leader>e", M.toggle, { desc = "Open file tree" })
   setup_highlights()
   vim.api.nvim_create_autocmd("ColorScheme",
-    { callback = function()
-      setup_highlights(); if state.buf and vim.api.nvim_buf_is_valid(state.buf) then render(false) end
-    end })
+    {
+      callback = function()
+        setup_highlights(); if state.buf and vim.api.nvim_buf_is_valid(state.buf) then render(false) end
+      end
+    })
   vim.api.nvim_create_autocmd({ "BufWritePost", "FocusGained" }, {
     callback = function()
       if state.win and vim.api.nvim_win_is_valid(state.win) then
@@ -670,8 +712,30 @@ function M.setup(opts)
       end
     end
   })
+  vim.api.nvim_create_autocmd({ "BufWinEnter", "BufEnter" }, {
+    nested = true,
+    callback = function(ev)
+      local win = vim.api.nvim_get_current_win()
+      local buf = ev.buf
+      if not (state.win and vim.api.nvim_win_is_valid(state.win)) then return end
+      if win ~= state.win then return end
+
+      if state.buf and vim.api.nvim_buf_is_valid(state.buf) and buf ~= state.buf then
+        local bo = vim.bo[buf]
+        if bo.filetype ~= "filetree" and bo.buftype == "" then
+          vim.api.nvim_win_set_buf(state.win, state.buf)
+          local target_win = get_target_win()
+          vim.api.nvim_set_current_win(target_win)
+          vim.api.nvim_win_set_buf(target_win, buf)
+          ensure_editor_options(target_win)
+        end
+      end
+    end,
+  })
   vim.api.nvim_create_user_command("FileTree", function() M.toggle() end, {})
   vim.api.nvim_create_user_command("FileTreeFind", function() M.reveal() end, {})
 end
+
+M.setup()
 
 return M
