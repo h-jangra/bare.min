@@ -1,200 +1,138 @@
 local M = {}
 
-local signs = {
-  add = "▎",
-  change = "▎",
-  delete = "",
+local api = vim.api
+
+local DEBOUNCE_MS = 120
+local MAX_LINES = 10000
+local SIGN_PRIORITY = 10
+
+local SIGNS = {
+  Add = { text = "▎", fg = "#98bb6c", hl = "BareGitAdd" },
+  Change = { text = "▎", fg = "#7fb4ca", hl = "BareGitChange" },
+  Delete = { text = "", fg = "#e46876", hl = "BareGitDelete" },
 }
 
-local root_cache = {}
+local ns = api.nvim_create_namespace("bare_git")
 local pending = {}
 local last_diff = {}
 
-vim.fn.sign_define("BareGitAdd", {
-  text = signs.add,
-  texthl = "BareGitAdd",
-})
-
-vim.fn.sign_define("BareGitChange", {
-  text = signs.change,
-  texthl = "BareGitChange",
-})
-
-vim.fn.sign_define("BareGitDelete", {
-  text = signs.delete,
-  texthl = "BareGitDelete",
-})
+for _, cfg in pairs(SIGNS) do
+  vim.fn.sign_define(cfg.hl, { text = cfg.text, texthl = cfg.hl })
+end
 
 local function set_hl()
-  vim.api.nvim_set_hl(0, "BareGitAdd", {
-    fg = "#98bb6c",
-  })
-
-  vim.api.nvim_set_hl(0, "BareGitChange", {
-    fg = "#7fb4ca",
-  })
-
-  vim.api.nvim_set_hl(0, "BareGitDelete", {
-    fg = "#e46876",
-  })
+  for _, cfg in pairs(SIGNS) do
+    api.nvim_set_hl(0, cfg.hl, { fg = cfg.fg })
+  end
 end
-
-local ns = vim.api.nvim_create_namespace("bare_git")
 
 local function clear(buf)
-  vim.api.nvim_buf_clear_namespace(buf, ns, 0, -1)
+  api.nvim_buf_clear_namespace(buf, ns, 0, -1)
 end
 
-local function git_root(path)
-  return vim.fs.root(path, ".git")
-end
-
-local function parse_hunks(buf, base)
+local function parse_hunks(buf, base, file)
   if pending[buf] then
+    return
+  end
+
+  local rel = vim.fs.relpath(base, file)
+  if not rel then
     return
   end
 
   pending[buf] = true
 
-  local file = vim.api.nvim_buf_get_name(buf)
+  vim.system(
+    { "git", "-C", base, "diff", "--no-ext-diff", "--unified=0", "--", rel },
+    { text = true },
+    function(result)
+      vim.schedule(function()
+        pending[buf] = nil
 
-  if file == "" then
-    pending[buf] = nil
-    return
-  end
+        if not api.nvim_buf_is_valid(buf) then
+          return
+        end
 
-  local rel = vim.fs.relpath(base, file)
+        local diff = result.stdout or ""
+        if last_diff[buf] == diff then
+          return
+        end
 
-  if not rel then
-    pending[buf] = nil
-    return
-  end
+        last_diff[buf] = diff
+        clear(buf)
 
-  vim.system({
-    "git",
-    "-C",
-    base,
-    "diff",
-    "--no-ext-diff",
-    "--unified=0",
-    "--",
-    rel,
-  }, {
-    text = true,
-  }, function(result)
-    vim.schedule(function()
-      pending[buf] = nil
+        local total_lines = api.nvim_buf_line_count(buf)
 
-      if not vim.api.nvim_buf_is_valid(buf) then
-        return
-      end
-
-      local diff = result.stdout or ""
-
-      if last_diff[buf] == diff then
-        return
-      end
-
-      last_diff[buf] = diff
-
-      clear(buf)
-      local total_lines = vim.api.nvim_buf_line_count(buf)
-
-      for line in diff:gmatch("[^\r\n]+") do
-        local old_start, old_count, new_start, new_count =
+        for line in diff:gmatch("[^\r\n]+") do
+          local old_start, old_count, new_start, new_count =
             line:match("@@ %-(%d+),?(%d*) %+([0-9]+),?(%d*) @@")
 
-        if old_start then
-          old_count = tonumber(old_count) or 1
-          new_count = tonumber(new_count) or 1
-          new_start = tonumber(new_start)
+          if old_start then
+            old_count = tonumber(old_count) or 1
+            new_count = tonumber(new_count) or 1
+            new_start = tonumber(new_start)
 
-          local sign_text
-          local hl
-          local start_line
-          local count
+            local sign, count, start_line
+            if new_count == 0 then
+              sign, count, start_line = SIGNS.Delete, 1, math.max(new_start, 1)
+            elseif old_count == 0 then
+              sign, count, start_line = SIGNS.Add, new_count, new_start
+            else
+              sign, count, start_line = SIGNS.Change, math.max(old_count, new_count), new_start
+            end
 
-          if new_count == 0 then
-            sign_text = signs.delete
-            hl = "BareGitDelete"
-            start_line = math.max(new_start, 1)
-            count = 1
-          elseif old_count == 0 then
-            sign_text = signs.add
-            hl = "BareGitAdd"
-            start_line = new_start
-            count = new_count
-          else
-            sign_text = signs.change
-            hl = "BareGitChange"
-            start_line = new_start
-            count = math.max(old_count, new_count)
-          end
-
-          for i = 0, count - 1 do
-            local lnum = start_line + i - 1
-            if lnum >= 0 and lnum < total_lines then
-              vim.api.nvim_buf_set_extmark(buf, ns, lnum, 0, {
-                sign_text = sign_text,
-                sign_hl_group = hl,
-                priority = 10,
-              })
+            for i = 0, count - 1 do
+              local lnum = start_line + i - 1
+              if lnum >= 0 and lnum < total_lines then
+                api.nvim_buf_set_extmark(buf, ns, lnum, 0, {
+                  sign_text = sign.text,
+                  sign_hl_group = sign.hl,
+                  priority = SIGN_PRIORITY,
+                })
+              end
             end
           end
         end
-      end
-    end)
-  end)
+      end)
+    end
+  )
 end
 
 function M.update(buf)
-  buf = buf or vim.api.nvim_get_current_buf()
+  buf = buf or api.nvim_get_current_buf()
 
-  if vim.bo[buf].buftype ~= "" then
+  if vim.bo[buf].buftype ~= "" or api.nvim_buf_line_count(buf) > MAX_LINES then
     return
   end
 
-  if vim.api.nvim_buf_line_count(buf) > 10000 then
-    return
-  end
-
-  local file = vim.api.nvim_buf_get_name(buf)
-
+  local file = api.nvim_buf_get_name(buf)
   if file == "" then
     return
   end
 
-  local root = git_root(file)
-
+  local root = vim.fs.root(file, ".git")
   if not root then
     clear(buf)
     return
   end
 
-  parse_hunks(buf, root)
+  parse_hunks(buf, root, file)
 end
 
 function M.setup()
   set_hl()
 
-  local group = vim.api.nvim_create_augroup("BareGit", { clear = true })
-
+  local group = api.nvim_create_augroup("BareGit", { clear = true })
   local timers = {}
 
-  vim.api.nvim_create_autocmd({
-    "BufEnter",
-    "BufWritePost",
-    "TextChanged",
-  }, {
+  api.nvim_create_autocmd({ "BufEnter", "BufWritePost", "TextChanged" }, {
     group = group,
     callback = function(args)
       local buf = args.buf
-      if not timers[buf] then
-        timers[buf] = vim.uv.new_timer()
-      end
-      timers[buf]:stop()
-
-      timers[buf]:start(120, 0, function()
+      local timer = timers[buf] or vim.uv.new_timer()
+      timers[buf] = timer
+      timer:stop()
+      timer:start(DEBOUNCE_MS, 0, function()
         vim.schedule(function()
           M.update(buf)
         end)
@@ -202,7 +140,7 @@ function M.setup()
     end,
   })
 
-  vim.api.nvim_create_autocmd("BufWipeout", {
+  api.nvim_create_autocmd("BufWipeout", {
     group = group,
     callback = function(args)
       local buf = args.buf
@@ -211,10 +149,12 @@ function M.setup()
         timers[buf]:close()
         timers[buf] = nil
       end
+      pending[buf] = nil
+      last_diff[buf] = nil
     end,
   })
 
-  vim.api.nvim_create_autocmd("ColorScheme", {
+  api.nvim_create_autocmd("ColorScheme", {
     group = group,
     callback = set_hl,
   })

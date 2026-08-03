@@ -2,7 +2,7 @@ vim.opt.pumheight = 10
 vim.opt.complete = { ".", "w", "b", "u" }
 vim.opt.completeopt = { "menuone", "noinsert", "noselect", "popup" }
 vim.opt.pumborder = "rounded"
-vim.o.autocomplete = true
+-- vim.o.autocomplete = true
 
 local icons = {
   Text = "󰉿",
@@ -79,3 +79,9 @@ end, { expr = true, silent = true })
 --   end
 --   return vim.keycode("<CR>")
 -- end, { expr = true, silent = true })
+
+vim.api.nvim_create_autocmd("InsertCharPre", {
+  callback = function()
+    vim.lsp.completion.get()
+  end,
+})
