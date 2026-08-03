@@ -1,60 +1,56 @@
 local M = {}
-
-local function has(cmd)
-  return vim.fn.executable(cmd) == 1
-end
-
 local ui = require("bare.ui")
 
-local function float_cmd(cmd, on_select)
-  local tmp = vim.fn.tempname()
-  local buf, win = ui.float()
+local function run(command, on_select)
+  if vim.fn.executable("fzf") == 0 then return end
 
-  vim.bo[buf].bufhidden = "wipe"
+  local outfile = vim.fn.tempname()
+  local bufnr, winid = ui.float()
+
+  vim.bo[bufnr].bufhidden = "wipe"
 
   vim.api.nvim_create_autocmd("TermClose", {
-    buffer = buf,
+    buffer = bufnr,
     once = true,
     callback = function()
       vim.schedule(function()
-        if vim.api.nvim_win_is_valid(win) then vim.api.nvim_win_close(win, true) end
-        if vim.fn.filereadable(tmp) == 1 then
-          local result = vim.fn.readfile(tmp)[1]
-          if result then on_select(result) end
-          vim.fn.delete(tmp)
+        pcall(vim.api.nvim_win_close, winid, true)
+        local ok, lines = pcall(vim.fn.readfile, outfile)
+        vim.fn.delete(outfile)
+
+        if ok and lines[1] then
+          on_select(lines[1])
         end
       end)
     end,
   })
 
-  vim.fn.jobstart(cmd .. " > " .. tmp, { term = true })
-  vim.cmd("startinsert")
+  vim.fn.jobstart({ "sh", "-c", command .. " > " .. outfile }, { term = true })
+  vim.cmd.startinsert()
 end
 
 function M.files()
-  local cmd = "fzf --prompt='Files> '"
-  float_cmd(cmd, function(file)
+  run("fzf --prompt='Files> '", function(file)
     vim.cmd("edit " .. vim.fn.fnameescape(file))
   end)
 end
 
 function M.grep()
-  if not (has("fzf") and has("rg")) then return end
+  if vim.fn.executable("rg") == 0 then return end
 
-  local preview = has("bat")
+  local preview = vim.fn.executable("bat") == 1
       and "bat --style=numbers --color=always --highlight-line {2} {1}"
       or "cat {1}"
 
-  local cmd = string.format(
+  local command = string.format(
     'fzf --ansi --disabled --prompt="Grep> " --delimiter=: ' ..
     '--preview="%s" --preview-window="right:60%%:wrap:+{2}-/2" ' ..
     '--bind="change:reload:sleep 0.1; rg --column --line-number --no-heading --color=always --smart-case {q} || true"',
     preview
   )
 
-  float_cmd(cmd, function(line)
+  run(command, function(line)
     local file, lnum, col = line:match("([^:]+):(%d+):(%d+)")
-
     if file and lnum and col then
       vim.cmd("edit " .. vim.fn.fnameescape(file))
       vim.api.nvim_win_set_cursor(0, { tonumber(lnum), tonumber(col) - 1 })
