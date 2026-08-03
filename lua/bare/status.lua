@@ -1,36 +1,82 @@
 local modes = {
-  n = { letter = "N", color = "#89b4fa" },
-  i = { letter = "I", color = "#a6e3a1" },
-  v = { letter = "V", color = "#cba6f7" },
-  V = { letter = "V-L", color = "#cba6f7" },
-  ["\22"] = { letter = "V-B", color = "#cba6f7" },
-  R = { letter = "R", color = "#f38ba8" },
-  c = { letter = "C", color = "#f9e2af" },
-  t = { letter = "T", color = "#fab387" },
+  n = { letter = "N", hl = "Function" },
+  i = { letter = "I", hl = "String" },
+  v = { letter = "V", hl = "Statement" },
+  V = { letter = "V-L", hl = "Statement" },
+  ["\22"] = { letter = "V-B", hl = "Statement" },
+  R = { letter = "R", hl = "DiagnosticSignError" },
+  c = { letter = "C", hl = "DiagnosticSignWarn" },
+  t = { letter = "T", hl = "Constant" },
 }
 
+local function get_hl(name)
+  local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
+  return (ok and hl) and hl or {}
+end
+
+local function get_stl_bg()
+  local tab = get_hl("TabLine")
+  if tab.bg and tab.bg ~= 0 then return tab.bg end
+  local stl = get_hl("StatusLine")
+  if stl.bg and stl.bg ~= 0 then return stl.bg end
+  local float = get_hl("NormalFloat")
+  if float.bg and float.bg ~= 0 then return float.bg end
+  local cur = get_hl("CursorLine")
+  if cur.bg and cur.bg ~= 0 then return cur.bg end
+  return get_hl("Normal").bg or 0x1e1e2e
+end
+
+local function contrast_fg(bg_color, dark_fg, light_fg)
+  if not bg_color or bg_color == 0 then return light_fg end
+  local r = bit.rshift(bit.band(bg_color, 0xFF0000), 16)
+  local g = bit.rshift(bit.band(bg_color, 0x00FF00), 8)
+  local b = bit.band(bg_color, 0x0000FF)
+  local lum = (r * 299 + g * 587 + b * 114) / 1000
+  return lum > 135 and dark_fg or light_fg
+end
+
 local function setup_highlights()
-  vim.api.nvim_set_hl(0, "StatusLine", { fg = "#c6c6c6", bg = "NONE" })
-  vim.api.nvim_set_hl(0, "StatusLineNC", { fg = "#c6c6c6", bg = "NONE" })
-  vim.api.nvim_set_hl(0, "StlText", { fg = "#cdd6f4", bg = "#292c3c" })
-  vim.api.nvim_set_hl(0, "StlGit", { fg = "#f9e2af", bg = "#292c3c" })
-  vim.api.nvim_set_hl(0, "StlLsp", { fg = "#89b4fa", bg = "#292c3c", bold = true })
-  vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#292c3c" })
-  vim.api.nvim_set_hl(0, "StlFileModified", { fg = "#f2cdcd", bg = "#292c3c", bold = true })
-  vim.api.nvim_set_hl(0, "StlDiagErr", { fg = "#f38ba8", bg = "#292c3c", bold = true })
-  vim.api.nvim_set_hl(0, "StlDiagWarn", { fg = "#f9e2af", bg = "#292c3c" })
-  vim.api.nvim_set_hl(0, "StlBubble", { fg = "#cdd6f4", bg = "#292c3c", })
-  vim.api.nvim_set_hl(0, "StlBubbleLeft", { fg = "#292c3c", bg = "NONE", })
-  vim.api.nvim_set_hl(0, "StlBubbleRight", { fg = "#292c3c", bg = "NONE", })
+  local stl_bg = get_stl_bg()
+  local norm = get_hl("Normal")
+  local norm_fg = norm.fg or 0xcdd6f4
+
+  local func = get_hl("Function")
+  local git = get_hl("diffChanged")
+  local warn = get_hl("DiagnosticSignWarn")
+  local err = get_hl("DiagnosticSignError")
+  local hint = get_hl("DiagnosticSignHint")
+  local mod = get_hl("DiagnosticSignWarn")
+  local comment = get_hl("Comment")
+
+  vim.api.nvim_set_hl(0, "StatusLine", { fg = norm_fg, bg = "NONE" })
+  vim.api.nvim_set_hl(0, "StatusLineNC", { fg = norm_fg, bg = "NONE" })
+
+  vim.api.nvim_set_hl(0, "StlText", { fg = norm_fg, bg = stl_bg })
+  vim.api.nvim_set_hl(0, "StlGit", { fg = git.fg or warn.fg or norm_fg, bg = stl_bg })
+  vim.api.nvim_set_hl(0, "StlLsp", { fg = func.fg or norm_fg, bg = stl_bg, bold = true })
+  vim.api.nvim_set_hl(0, "StlFile", { fg = hint.fg or func.fg or norm_fg, bg = stl_bg })
+  vim.api.nvim_set_hl(0, "StlFileModified", { fg = mod.fg or warn.fg or norm_fg, bg = stl_bg, bold = true })
+  vim.api.nvim_set_hl(0, "StlDiagErr", { fg = err.fg or norm_fg, bg = stl_bg, bold = true })
+  vim.api.nvim_set_hl(0, "StlDiagWarn", { fg = warn.fg or norm_fg, bg = stl_bg })
+  vim.api.nvim_set_hl(0, "StlBubble", { fg = norm_fg, bg = stl_bg })
+  vim.api.nvim_set_hl(0, "StlBubbleLeft", { fg = stl_bg, bg = "NONE" })
+  vim.api.nvim_set_hl(0, "StlBubbleRight", { fg = stl_bg, bg = "NONE" })
 
   for _, m in pairs(modes) do
     local suffix = m.letter:gsub("[^%w_]", "_")
-    vim.api.nvim_set_hl(0, "StlMode" .. suffix, { fg = "#292c3c", bg = m.color, bold = true })
-    vim.api.nvim_set_hl(0, "StlModeLeft" .. suffix, { fg = m.color, bg = "NONE", })
-    vim.api.nvim_set_hl(0, "StlModeRight" .. suffix, { fg = m.color, bg = "#292c3c", })
-    vim.api.nvim_set_hl(0, "StlModeEnd" .. suffix, { fg = m.color, bg = "NONE", })
+    local mode_hl = get_hl(m.hl)
+    local mode_color = mode_hl.fg or norm_fg
+    local mode_text = contrast_fg(mode_color, stl_bg, norm_fg)
+
+    vim.api.nvim_set_hl(0, "StlMode" .. suffix, { fg = mode_text, bg = mode_color, bold = true })
+    vim.api.nvim_set_hl(0, "StlModeLeft" .. suffix, { fg = mode_color, bg = "NONE" })
+    vim.api.nvim_set_hl(0, "StlModeRight" .. suffix, { fg = mode_color, bg = stl_bg })
+    vim.api.nvim_set_hl(0, "StlModeEnd" .. suffix, { fg = mode_color, bg = "NONE" })
   end
-  vim.api.nvim_set_hl(0, "StlModeUnknown", { fg = "#292c3c", bg = "#6c7086", bold = true })
+
+  local unknown_color = comment.fg or norm_fg
+  local unknown_text = contrast_fg(unknown_color, stl_bg, norm_fg)
+  vim.api.nvim_set_hl(0, "StlModeUnknown", { fg = unknown_text, bg = unknown_color, bold = true })
 end
 
 setup_highlights()

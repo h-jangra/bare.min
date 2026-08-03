@@ -1,12 +1,23 @@
 local icons = require("bare.icons")
 
+local function get_hl(name)
+  local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
+  return (ok and hl) and hl or {}
+end
+
 local function setup_highlights()
+  local tab_sel = get_hl("TabLineSel")
+  local tab = get_hl("TabLine")
+  local warn = get_hl("DiagnosticSignWarn")
+
   vim.api.nvim_set_hl(0, "WinBar", { bg = "NONE" })
   vim.api.nvim_set_hl(0, "WinBarNC", { bg = "NONE" })
   vim.api.nvim_set_hl(0, "WinBarActive", { link = "TabLineSel" })
-  vim.api.nvim_set_hl(0, "WinBarModifiedActive", { link = "TabLineSel" })
   vim.api.nvim_set_hl(0, "WinBarInactive", { link = "TabLine" })
-  vim.api.nvim_set_hl(0, "WinBarModifiedInactive", { link = "TabLine" })
+
+  local mod_fg = warn.fg or tab_sel.fg
+  vim.api.nvim_set_hl(0, "WinBarModifiedActive", { fg = mod_fg, bg = tab_sel.bg, bold = true })
+  vim.api.nvim_set_hl(0, "WinBarModifiedInactive", { fg = mod_fg, bg = tab.bg, italic = true })
 end
 setup_highlights()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })

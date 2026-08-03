@@ -76,6 +76,9 @@ local aliases = {
 }
 
 local defined_hls = {}
+vim.api.nvim_create_autocmd("ColorScheme", {
+  callback = function() defined_hls = {} end,
+})
 
 function M.get(ft)
   local raw_key = ft and ft:lower() or "default"

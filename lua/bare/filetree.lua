@@ -33,8 +33,8 @@ local state = {
 local MIN_WIDTH = 20
 local has_icons, icons = pcall(require, "bare.icons")
 local folder_icons = {
-  expanded  = { icon = " ", color = "#89b4fa" },
-  collapsed = { icon = " ", color = "#89b4fa" },
+  expanded  = { icon = " " },
+  collapsed = { icon = " " },
 }
 
 local function get_icon(name, is_dir, is_expanded)
@@ -216,17 +216,42 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
   return lines, map, extmarks
 end
 
+local function get_hl(name)
+  local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = name, link = false })
+  return (ok and hl) and hl or {}
+end
+
 local function setup_highlights()
-  vim.api.nvim_set_hl(0, "FileTreeRoot", { fg = "#89b4fa", bold = true })
-  vim.api.nvim_set_hl(0, "FileTreeIndentGuide", { fg = "#3b4261" })
-  vim.api.nvim_set_hl(0, "FileTreeFolderExpanded", { fg = folder_icons.expanded.color, bold = true })
-  vim.api.nvim_set_hl(0, "FileTreeFolderCollapsed", { fg = folder_icons.collapsed.color, bold = true })
-  vim.api.nvim_set_hl(0, "FileTreeGitModified", { fg = "#e0af68", bold = true })
-  vim.api.nvim_set_hl(0, "FileTreeGitAdded", { fg = "#9ece6a", bold = true })
-  vim.api.nvim_set_hl(0, "FileTreeGitUntracked", { fg = "#7dcfff", bold = true })
-  vim.api.nvim_set_hl(0, "FileTreeGitDeleted", { fg = "#f7768e", bold = true })
-  vim.api.nvim_set_hl(0, "FileTreeHidden", { fg = "#565f89", italic = true })
-  vim.api.nvim_set_hl(0, "FileTreeSelected", { fg = "#bb9af7", bold = true })
+  local dir = get_hl("Directory")
+  local fn = get_hl("Function")
+  local norm = get_hl("Normal")
+  local nontext = get_hl("NonText")
+  local comment = get_hl("Comment")
+  local guide = get_hl("WinSeparator")
+  local added = get_hl("diffAdded")
+  local changed = get_hl("diffChanged")
+  local removed = get_hl("diffRemoved")
+  local untracked = get_hl("DiagnosticSignInfo")
+  local err = get_hl("DiagnosticSignError")
+  local warn = get_hl("DiagnosticSignWarn")
+  local stmt = get_hl("Statement")
+  local title = get_hl("Title")
+
+  local dir_color = dir.fg or fn.fg or norm.fg
+  local hidden_color = comment.fg or nontext.fg
+  local guide_color = guide.fg or nontext.fg
+  local selected_color = stmt.fg or title.fg or warn.fg
+
+  vim.api.nvim_set_hl(0, "FileTreeRoot", { fg = dir_color, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeIndentGuide", { fg = guide_color })
+  vim.api.nvim_set_hl(0, "FileTreeFolderExpanded", { fg = dir_color, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeFolderCollapsed", { fg = dir_color, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeGitModified", { fg = changed.fg or warn.fg, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeGitAdded", { fg = added.fg or warn.fg, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeGitUntracked", { fg = untracked.fg or fn.fg, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeGitDeleted", { fg = removed.fg or err.fg, bold = true })
+  vim.api.nvim_set_hl(0, "FileTreeHidden", { fg = hidden_color, italic = true })
+  vim.api.nvim_set_hl(0, "FileTreeSelected", { fg = selected_color, bold = true })
 end
 
 local function get_item()
