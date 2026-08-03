@@ -10,20 +10,29 @@ local modes = {
 }
 
 local function setup_highlights()
+  vim.api.nvim_set_hl(0, "StatusLine", { fg = "#c6c6c6", bg = "NONE" })
+  vim.api.nvim_set_hl(0, "StatusLineNC", { fg = "#c6c6c6", bg = "NONE" })
   vim.api.nvim_set_hl(0, "StlText", { fg = "#cdd6f4", bg = "#292c3c" })
   vim.api.nvim_set_hl(0, "StlGit", { fg = "#f9e2af", bg = "#292c3c" })
-  vim.api.nvim_set_hl(0, "StlLsp", { fg = "#a6e3a1", bg = "#292c3c" })
+  vim.api.nvim_set_hl(0, "StlLsp", { fg = "#89b4fa", bg = "#292c3c", bold = true })
   vim.api.nvim_set_hl(0, "StlFile", { fg = "#94e2d5", bg = "#292c3c" })
   vim.api.nvim_set_hl(0, "StlFileModified", { fg = "#f2cdcd", bg = "#292c3c", bold = true })
   vim.api.nvim_set_hl(0, "StlDiagErr", { fg = "#f38ba8", bg = "#292c3c", bold = true })
   vim.api.nvim_set_hl(0, "StlDiagWarn", { fg = "#f9e2af", bg = "#292c3c" })
+  vim.api.nvim_set_hl(0, "StlBubble", { fg = "#cdd6f4", bg = "#292c3c", })
+  vim.api.nvim_set_hl(0, "StlBubbleLeft", { fg = "#292c3c", bg = "NONE", })
+  vim.api.nvim_set_hl(0, "StlBubbleRight", { fg = "#292c3c", bg = "NONE", })
 
   for _, m in pairs(modes) do
     local suffix = m.letter:gsub("[^%w_]", "_")
     vim.api.nvim_set_hl(0, "StlMode" .. suffix, { fg = "#292c3c", bg = m.color, bold = true })
+    vim.api.nvim_set_hl(0, "StlModeLeft" .. suffix, { fg = m.color, bg = "NONE", })
+    vim.api.nvim_set_hl(0, "StlModeRight" .. suffix, { fg = m.color, bg = "#292c3c", })
+    vim.api.nvim_set_hl(0, "StlModeEnd" .. suffix, { fg = m.color, bg = "NONE", })
   end
   vim.api.nvim_set_hl(0, "StlModeUnknown", { fg = "#292c3c", bg = "#6c7086", bold = true })
 end
+
 setup_highlights()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
 
@@ -54,7 +63,7 @@ local function get_git_branch()
   if not line then return "" end
 
   local branch = line:match("ref: refs/heads/(.+)") or line:sub(1, 7)
-  return "%#StlGit#  " .. vim.trim(branch)
+  return " " .. vim.trim(branch)
 end
 
 local function get_diag_status()
@@ -74,7 +83,7 @@ local function get_lsp_names()
   for _, c in ipairs(clients) do
     table.insert(names, c.name)
   end
-  return "%#StlLsp# " .. table.concat(names, ", ")
+  return "%#StlLsp#" .. table.concat(names, ", ")
 end
 
 local function get_file_size()
@@ -104,18 +113,44 @@ _G.status_line = function()
   elseif vim.bo.buftype == "terminal" then
     file = file:find("fzf") and "FZF" or "Floaterm"
   end
-  local file_hl = vim.bo.modified and "%#StlFileModified# " or "%#StlText# "
+  local file_hl = vim.bo.modified and "%#StlFileModified#" or "%#StlText#"
 
-  return table.concat({
-    "%#StlMode" .. hl_suffix .. "# ", mode_info.letter, " ",
-    file_hl, file, " ",
-    get_git_branch(),
-    get_diag_status(),
-    "%=",
-    get_lsp_names(),
-    get_file_size(),
-    "%#StlText# %l|%L ",
-  })
+  local sec_a =
+      "%#StlModeLeft" .. hl_suffix .. "#" ..
+      "%#StlMode" .. hl_suffix .. "# " .. mode_info.letter .. " " ..
+      "%#StlModeRight" .. hl_suffix .. "#"
+
+  local sec_b =
+      "%#StlBubble#" ..
+      file_hl ..
+      file
+
+  local git = get_git_branch()
+  if git ~= "" then
+    sec_b = sec_b .. "  %#StlGit#" .. git .. "%#StlBubble#"
+  end
+
+  sec_b = sec_b .. get_diag_status() .. " " .. "%#StlBubbleRight#"
+
+  local sec_y = ""
+
+  local lsp = get_lsp_names()
+  if lsp ~= "" then sec_y = sec_y .. lsp end
+
+  local size = get_file_size()
+  if size ~= "" then sec_y = sec_y .. size end
+
+  if sec_y ~= "" then
+    sec_y = "%#StlBubbleLeft#" .. "%#StlBubble# " .. sec_y .. " %#StlBubbleRight#"
+  end
+
+  local sec_z =
+      "%#StlModeLeft" .. hl_suffix .. "#" ..
+      "%#StlModeRight" .. hl_suffix .. "# %l " ..
+      "%#StlMode" .. hl_suffix .. "# %L" ..
+      "%#StlModeEnd" .. hl_suffix .. "#"
+
+  return table.concat({ sec_a, " ", sec_b, "%=", sec_y, sec_z, })
 end
 
 vim.o.statusline = "%!v:lua.status_line()"

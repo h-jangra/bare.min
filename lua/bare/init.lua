@@ -12,6 +12,7 @@ end
 
 vim.opt.shadafile = ""
 
+require('vim._core.ui2').enable({})
 require("bare.theme").setup()
 require("bare.options")
 require("bare.keymaps")
