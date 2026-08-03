@@ -14,30 +14,10 @@ local function get_hl(name)
   return (ok and hl) and hl or {}
 end
 
-local function get_stl_bg()
-  local tab = get_hl("TabLine")
-  if tab.bg and tab.bg ~= 0 then return tab.bg end
-  local stl = get_hl("StatusLine")
-  if stl.bg and stl.bg ~= 0 then return stl.bg end
-  local float = get_hl("NormalFloat")
-  if float.bg and float.bg ~= 0 then return float.bg end
-  local cur = get_hl("CursorLine")
-  if cur.bg and cur.bg ~= 0 then return cur.bg end
-  return get_hl("Normal").bg or 0x1e1e2e
-end
-
-local function contrast_fg(bg_color, dark_fg, light_fg)
-  if not bg_color or bg_color == 0 then return light_fg end
-  local r = bit.rshift(bit.band(bg_color, 0xFF0000), 16)
-  local g = bit.rshift(bit.band(bg_color, 0x00FF00), 8)
-  local b = bit.band(bg_color, 0x0000FF)
-  local lum = (r * 299 + g * 587 + b * 114) / 1000
-  return lum > 135 and dark_fg or light_fg
-end
-
 local function setup_highlights()
-  local stl_bg = get_stl_bg()
+  local stl = get_hl("StatusLine")
   local norm = get_hl("Normal")
+  local stl_bg = stl.bg or norm.bg or 0x1e1e2e
   local norm_fg = norm.fg or 0xcdd6f4
 
   local func = get_hl("Function")
@@ -46,7 +26,6 @@ local function setup_highlights()
   local err = get_hl("DiagnosticSignError")
   local hint = get_hl("DiagnosticSignHint")
   local mod = get_hl("DiagnosticSignWarn")
-  local comment = get_hl("Comment")
 
   vim.api.nvim_set_hl(0, "StatusLine", { fg = norm_fg, bg = "NONE" })
   vim.api.nvim_set_hl(0, "StatusLineNC", { fg = norm_fg, bg = "NONE" })
@@ -66,17 +45,12 @@ local function setup_highlights()
     local suffix = m.letter:gsub("[^%w_]", "_")
     local mode_hl = get_hl(m.hl)
     local mode_color = mode_hl.fg or norm_fg
-    local mode_text = contrast_fg(mode_color, stl_bg, norm_fg)
 
-    vim.api.nvim_set_hl(0, "StlMode" .. suffix, { fg = mode_text, bg = mode_color, bold = true })
+    vim.api.nvim_set_hl(0, "StlMode" .. suffix, { fg = stl_bg, bg = mode_color, bold = true })
     vim.api.nvim_set_hl(0, "StlModeLeft" .. suffix, { fg = mode_color, bg = "NONE" })
     vim.api.nvim_set_hl(0, "StlModeRight" .. suffix, { fg = mode_color, bg = stl_bg })
     vim.api.nvim_set_hl(0, "StlModeEnd" .. suffix, { fg = mode_color, bg = "NONE" })
   end
-
-  local unknown_color = comment.fg or norm_fg
-  local unknown_text = contrast_fg(unknown_color, stl_bg, norm_fg)
-  vim.api.nvim_set_hl(0, "StlModeUnknown", { fg = unknown_text, bg = unknown_color, bold = true })
 end
 
 setup_highlights()
@@ -125,27 +99,23 @@ end
 local function get_lsp_names()
   local clients = vim.lsp.get_clients({ bufnr = 0 })
   if #clients == 0 then return "" end
-  local names = {}
-  for _, c in ipairs(clients) do
-    table.insert(names, c.name)
-  end
+  local names = vim.tbl_map(function(c)
+    return c.name
+  end, clients)
   return "%#StlLsp#" .. table.concat(names, ", ")
 end
 
 local function get_file_size()
   local size = vim.fn.getfsize(vim.api.nvim_buf_get_name(0))
-  if size <= 0 then
-    return ""
-  end
+  if size <= 0 then return "" end
 
   local units = { "B", "K", "M", "G" }
-  local i = 1
-  while size >= 1024 and i < #units do
+  for i = 1, #units do
+    if size < 1024 or i == #units then
+      return (" %%#StlFile#%.1f%s"):format(size, units[i])
+    end
     size = size / 1024
-    i = i + 1
   end
-
-  return (" %%#StlFile#%.1f%s"):format(size, units[i])
 end
 
 _G.status_line = function()
@@ -192,11 +162,11 @@ _G.status_line = function()
 
   local sec_z =
       "%#StlModeLeft" .. hl_suffix .. "#" ..
-      "%#StlModeRight" .. hl_suffix .. "# %l " ..
+      -- "%#StlModeRight" .. hl_suffix .. "# %l " ..
       "%#StlMode" .. hl_suffix .. "# %L" ..
       "%#StlModeEnd" .. hl_suffix .. "#"
 
-  return table.concat({ sec_a, " ", sec_b, "%=", sec_y, sec_z, })
+  return table.concat({ sec_a, " ", sec_b, "%=", sec_y, sec_z })
 end
 
 vim.o.statusline = "%!v:lua.status_line()"

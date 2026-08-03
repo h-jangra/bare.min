@@ -34,7 +34,12 @@ local icons = {
 
 local function format(item)
   local kind = vim.lsp.protocol.CompletionItemKind[item.kind]
-  return { abbr = item.label, kind = icons[kind] or "", menu = item.detail }
+  local icon = icons[kind] or ""
+  return {
+    abbr = icon .. " " .. item.label,
+    kind = kind,
+    menu = item.detail,
+  }
 end
 
 local function complete_buffer()

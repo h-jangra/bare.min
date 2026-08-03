@@ -8,7 +8,7 @@ end
 local function setup_highlights()
   local tab_sel = get_hl("TabLineSel")
   local tab = get_hl("TabLine")
-  local warn = get_hl("DiagnosticSignWarn")
+  local warn = get_hl("DiagnosticSignHint")
 
   vim.api.nvim_set_hl(0, "WinBar", { bg = "NONE" })
   vim.api.nvim_set_hl(0, "WinBarNC", { bg = "NONE" })
@@ -16,7 +16,7 @@ local function setup_highlights()
   vim.api.nvim_set_hl(0, "WinBarInactive", { link = "TabLine" })
 
   local mod_fg = warn.fg or tab_sel.fg
-  vim.api.nvim_set_hl(0, "WinBarModifiedActive", { fg = mod_fg, bg = tab_sel.bg, bold = true })
+  vim.api.nvim_set_hl(0, "WinBarModifiedActive", { fg = tab_sel.fg, bg = tab_sel.bg, italic = true, bold = true })
   vim.api.nvim_set_hl(0, "WinBarModifiedInactive", { fg = mod_fg, bg = tab.bg, italic = true })
 end
 setup_highlights()
@@ -90,7 +90,7 @@ local function update(ev)
 end
 
 vim.api.nvim_create_autocmd(
-{ "BufAdd", "BufDelete", "BufWipeout", "BufUnload", "BufEnter", "BufModifiedSet", "WinEnter", "BufWinEnter" },
+  { "BufAdd", "BufDelete", "BufWipeout", "BufUnload", "BufEnter", "BufModifiedSet", "WinEnter", "BufWinEnter" },
   { callback = update })
 
 update()
