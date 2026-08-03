@@ -76,13 +76,16 @@ local function get_compact_dir(item, cache)
     if #children == 1 and children[1].is_dir then
       current = children[1]
       table.insert(parts, current.name)
-    else break end
+    else
+      break
+    end
   end
   return table.concat(parts, "/"), current.path
 end
 
 local function build_tree(path, depth, lines, map, extmarks, cache, is_last_table)
-  depth, lines, map, extmarks, cache, is_last_table = depth or 0, lines or {}, map or {}, extmarks or {}, cache or {}, is_last_table or {}
+  depth, lines, map, extmarks, cache, is_last_table = depth or 0, lines or {}, map or {}, extmarks or {}, cache or {},
+      is_last_table or {}
   local items = read_dir(path, cache)
 
   for idx, item in ipairs(items) do
@@ -100,13 +103,16 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
       end
     end
 
-    local is_expanded, is_selected, is_hidden = state.expanded[item.path], state.selected[item.path], item.name:sub(1, 1) == "."
+    local is_expanded, is_selected, is_hidden = state.expanded[item.path], state.selected[item.path],
+        item.name:sub(1, 1) == "."
     local icon, icon_hl = get_icon(item.name, item.is_dir, is_expanded)
 
     local is_cut = false
     if state.clipboard and state.clipboard.move and state.clipboard.paths then
       for _, p in ipairs(state.clipboard.paths) do
-        if item.path == p or item.path:sub(1, #p + 1) == p .. "/" then is_cut = true; break end
+        if item.path == p or item.path:sub(1, #p + 1) == p .. "/" then
+          is_cut = true; break
+        end
       end
     end
     if is_cut or is_hidden then icon_hl = "FileTreeHidden" end
@@ -119,7 +125,8 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
     end
 
     local git = state.git[item.path]
-    local git_hl = (git and not is_cut) and ((git == "M" and "FileTreeGitModified") or (git == "?" and "FileTreeGitUntracked")) or nil
+    local git_hl = (git and not is_cut) and
+        ((git == "M" and "FileTreeGitModified") or (git == "?" and "FileTreeGitUntracked")) or nil
 
     local display_name, final_path = get_compact_dir(item, cache)
     table.insert(lines, indent_str .. icon .. display_name)
@@ -131,14 +138,16 @@ local function build_tree(path, depth, lines, map, extmarks, cache, is_last_tabl
     end
 
     if is_selected then
-      table.insert(extmarks, { line = line_idx, col = connector_start + 1, end_col = connector_start + #connector_str, hl = "FileTreeSelected" })
+      table.insert(extmarks,
+        { line = line_idx, col = connector_start + 1, end_col = connector_start + #connector_str, hl = "FileTreeSelected" })
     end
 
     local icon_col = #indent_str
     table.insert(extmarks, { line = line_idx, col = icon_col, end_col = icon_col + #icon, hl = git_hl or icon_hl })
 
     local text_col = icon_col + #icon
-    local text_hl = (is_cut or is_hidden) and "FileTreeHidden" or git_hl or (item.is_dir and (is_expanded and "FileTreeFolderExpanded" or "FileTreeFolderCollapsed"))
+    local text_hl = (is_cut or is_hidden) and "FileTreeHidden" or git_hl or
+        (item.is_dir and (is_expanded and "FileTreeFolderExpanded" or "FileTreeFolderCollapsed"))
     if text_hl then
       table.insert(extmarks, { line = line_idx, col = text_col, end_col = text_col + #display_name, hl = text_hl })
     end
@@ -156,8 +165,10 @@ local function get_hl(name)
 end
 
 local function setup_highlights()
-  local dir, fn, norm, nontext, comment = get_hl("Directory"), get_hl("Function"), get_hl("Normal"), get_hl("NonText"), get_hl("Comment")
-  local changed, untracked, warn, stmt, title = get_hl("diffChanged"), get_hl("DiagnosticSignInfo"), get_hl("DiagnosticSignWarn"), get_hl("Statement"), get_hl("Title")
+  local dir, fn, norm, nontext, comment = get_hl("Directory"), get_hl("Function"), get_hl("Normal"), get_hl("NonText"),
+      get_hl("Comment")
+  local changed, untracked, warn, stmt, title = get_hl("diffChanged"), get_hl("DiagnosticSignInfo"),
+      get_hl("DiagnosticSignWarn"), get_hl("Statement"), get_hl("Title")
 
   local dir_color = dir.fg or fn.fg or norm.fg
   local hidden_color = comment.fg or nontext.fg
@@ -206,8 +217,11 @@ local function update_git_status(cb)
         local status = line:sub(1, 2)
         local file = line:sub(4)
         if file:sub(1, 1) == '"' and file:sub(-1) == '"' then file = file:sub(2, -2) end
-        if status:match("M") then git[root .. "/" .. file] = "M"
-        elseif status:match("%?%?") or status:match("U") then git[root .. "/" .. file] = "?" end
+        if status:match("M") then
+          git[root .. "/" .. file] = "M"
+        elseif status:match("%?%?") or status:match("U") then
+          git[root .. "/" .. file] = "?"
+        end
       end
     end
     vim.schedule(function()
@@ -233,7 +247,7 @@ local function render(update_git)
   local root_name = vim.fn.fnamemodify(root_path, ":t")
   if root_name == "" then root_name = root_path end
   local root_base = "  " .. root_name
-  local root_text = root_base .. (state.mark_mode and " ▌" or "")
+  local root_text = root_base .. (state.mark_mode and " 󰃀" or "")
   table.insert(lines, 1, root_text)
 
   state.line_to_path = map
@@ -244,12 +258,14 @@ local function render(update_git)
   local ns = vim.api.nvim_create_namespace("filetree")
   vim.api.nvim_buf_set_extmark(state.buf, ns, 0, 0, { end_row = 0, end_col = #root_base, hl_group = "FileTreeRoot" })
   if state.mark_mode then
-    vim.api.nvim_buf_set_extmark(state.buf, ns, 0, #root_base, { end_row = 0, end_col = #root_text, hl_group = "FileTreeSelected" })
+    vim.api.nvim_buf_set_extmark(state.buf, ns, 0, #root_base,
+      { end_row = 0, end_col = #root_text, hl_group = "FileTreeSelected" })
   end
 
   for _, m in ipairs(extmarks) do
     if m.hl then
-      vim.api.nvim_buf_set_extmark(state.buf, ns, m.line + 1, m.col, { end_row = m.line + 1, end_col = m.end_col, hl_group = m.hl })
+      vim.api.nvim_buf_set_extmark(state.buf, ns, m.line + 1, m.col,
+        { end_row = m.line + 1, end_col = m.end_col, hl_group = m.hl })
     end
   end
 
@@ -288,7 +304,9 @@ local function get_target_win()
   local target = is_valid(prev) and prev or nil
   if not target then
     for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if is_valid(w) then target = w; break end
+      if is_valid(w) then
+        target = w; break
+      end
     end
   end
   if not target and state.win and vim.api.nvim_win_is_valid(state.win) then
@@ -354,7 +372,9 @@ local function move_cursor(dir)
 end
 
 local function exit_mark_mode()
-  if state.mark_mode then state.mark_mode = false; render(false) end
+  if state.mark_mode then
+    state.mark_mode = false; render(false)
+  end
 end
 
 local function handle_esc()
@@ -381,7 +401,9 @@ local function toggle_select()
 end
 
 local function change_root(dir)
-  if dir then state.root = dir; render(true) end
+  if dir then
+    state.root = dir; render(true)
+  end
 end
 
 local function copy_path(rel)
@@ -477,7 +499,8 @@ function clipboard.copy(move)
   local names = {}
   for _, p in ipairs(paths) do table.insert(names, vim.fn.fnamemodify(p, ":t")) end
   local action = move and "Cut" or "Copied"
-  vim.notify((#paths == 1) and (action .. ": " .. names[1]) or (action .. " " .. #paths .. " items: " .. table.concat(names, ", ")))
+  vim.notify((#paths == 1) and (action .. ": " .. names[1]) or
+    (action .. " " .. #paths .. " items: " .. table.concat(names, ", ")))
   render(false)
 end
 
@@ -494,7 +517,8 @@ function clipboard.paste()
   if state.clipboard.move then state.clipboard = nil end
   state.selected = {}
   render(true)
-  vim.notify((#names == 1) and ("Pasted: " .. names[1]) or ("Pasted " .. #names .. " items: " .. table.concat(names, ", ")))
+  vim.notify((#names == 1) and ("Pasted: " .. names[1]) or
+    ("Pasted " .. #names .. " items: " .. table.concat(names, ", ")))
 end
 
 local function resize(delta)
@@ -514,28 +538,34 @@ local function setup_buffer()
     { "<2-LeftMouse>", open_file },
     { "h",             collapse },
     { "-",             function() change_root(vim.fn.fnamemodify(state.root or vim.fn.getcwd(), ":h")) end },
-    { "C",             function() local item = get_item(); if item and item.is_dir then change_root(item.path) end end },
-    { "j",             function() move_cursor(1) end },
-    { "<Down>",        function() move_cursor(1) end },
-    { "k",             function() move_cursor(-1) end },
-    { "<Up>",          function() move_cursor(-1) end },
-    { "H",             function() state.show_hidden = not state.show_hidden; render(true) end },
-    { "q",             M.close },
-    { "<Esc>",         handle_esc },
-    { "a",             function() create_entry(false) end },
-    { "A",             function() create_entry(true) end },
-    { "d",             delete_item },
-    { "r",             rename_item },
-    { "R",             function() render(true) end },
-    { "m",             toggle_select, mode = { "n", "v" } },
-    { "M",             function() state.selected = {}; state.mark_mode = false; render(false) end },
-    { "y",             function() clipboard.copy(false) end },
-    { "x",             function() clipboard.copy(true) end },
-    { "p",             clipboard.paste },
-    { "Y",             function() copy_path(true) end },
-    { "gy",            function() copy_path(false) end },
-    { ">",             function() resize(5) end },
-    { "<",             function() resize(-5) end },
+    { "C", function()
+      local item = get_item(); if item and item.is_dir then change_root(item.path) end
+    end },
+    { "j",      function() move_cursor(1) end },
+    { "<Down>", function() move_cursor(1) end },
+    { "k",      function() move_cursor(-1) end },
+    { "<Up>",   function() move_cursor(-1) end },
+    { "H", function()
+      state.show_hidden = not state.show_hidden; render(true)
+    end },
+    { "q",     M.close },
+    { "<Esc>", handle_esc },
+    { "a",     function() create_entry(false) end },
+    { "A",     function() create_entry(true) end },
+    { "d",     delete_item },
+    { "r",     rename_item },
+    { "R",     function() render(true) end },
+    { "m",     toggle_select,                     mode = { "n", "v" } },
+    { "M", function()
+      state.selected = {}; state.mark_mode = false; render(false)
+    end },
+    { "y",  function() clipboard.copy(false) end },
+    { "x",  function() clipboard.copy(true) end },
+    { "p",  clipboard.paste },
+    { "Y",  function() copy_path(true) end },
+    { "gy", function() copy_path(false) end },
+    { ">",  function() resize(5) end },
+    { "<",  function() resize(-5) end },
   }
   for _, m in ipairs(maps) do vim.keymap.set(m.mode or "n", m[1], m[2], opts) end
 end
@@ -550,7 +580,8 @@ function M.open()
   state.win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(state.win, state.buf)
   local wo = vim.wo[state.win]
-  wo.wrap, wo.cursorline, wo.number, wo.relativenumber, wo.signcolumn, wo.foldcolumn, wo.spell = false, true, false, false, "no", "0", false
+  wo.wrap, wo.cursorline, wo.number, wo.relativenumber, wo.signcolumn, wo.foldcolumn, wo.spell = false, true, false,
+      false, "no", "0", false
   render(true)
 end
 

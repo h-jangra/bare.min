@@ -32,7 +32,7 @@ local function setup_highlights()
 
   vim.api.nvim_set_hl(0, "StlText", { fg = norm_fg, bg = stl_bg })
   vim.api.nvim_set_hl(0, "StlGit", { fg = git.fg or warn.fg or norm_fg, bg = stl_bg })
-  vim.api.nvim_set_hl(0, "StlLsp", { fg = func.fg or norm_fg, bg = stl_bg, bold = true })
+  vim.api.nvim_set_hl(0, "StlLsp", { fg = func.fg or norm_fg, bg = stl_bg, italic = true })
   vim.api.nvim_set_hl(0, "StlFile", { fg = hint.fg or func.fg or norm_fg, bg = stl_bg })
   vim.api.nvim_set_hl(0, "StlFileModified", { fg = mod.fg or warn.fg or norm_fg, bg = stl_bg, bold = true })
   vim.api.nvim_set_hl(0, "StlDiagErr", { fg = err.fg or norm_fg, bg = stl_bg, bold = true })
@@ -125,7 +125,7 @@ _G.status_line = function()
 
   local file = vim.fn.expand("%:~:.")
   if file == "" then
-    file = "[No Name]"
+    file = "Untitled"
   elseif vim.bo.buftype == "terminal" then
     file = file:find("fzf") and "FZF" or "Floaterm"
   end
@@ -133,20 +133,17 @@ _G.status_line = function()
 
   local sec_a =
       "%#StlModeLeft" .. hl_suffix .. "#" ..
-      "%#StlMode" .. hl_suffix .. "# " .. mode_info.letter .. " " ..
+      "%#StlMode" .. hl_suffix .. "#" .. mode_info.letter .. " " ..
       "%#StlModeRight" .. hl_suffix .. "#"
 
-  local sec_b =
-      "%#StlBubble#" ..
-      file_hl ..
-      file
+  local sec_b = "%#StlBubble#" .. file_hl .. file
 
   local git = get_git_branch()
   if git ~= "" then
     sec_b = sec_b .. "  %#StlGit#" .. git .. "%#StlBubble#"
   end
 
-  sec_b = sec_b .. get_diag_status() .. " " .. "%#StlBubbleRight#"
+  sec_b = sec_b .. get_diag_status() .. "%#StlBubbleRight#"
 
   local sec_y = ""
 

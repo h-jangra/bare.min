@@ -7,17 +7,24 @@ end
 
 local function setup_highlights()
   local tab_sel = get_hl("TabLineSel")
-  local tab = get_hl("TabLine")
   local warn = get_hl("DiagnosticSignHint")
+
+  local active_bg = tab_sel.bg or tab_sel.fg
 
   vim.api.nvim_set_hl(0, "WinBar", { bg = "NONE" })
   vim.api.nvim_set_hl(0, "WinBarNC", { bg = "NONE" })
-  vim.api.nvim_set_hl(0, "WinBarActive", { link = "TabLineSel" })
-  vim.api.nvim_set_hl(0, "WinBarInactive", { link = "TabLine" })
 
-  local mod_fg = warn.fg or tab_sel.fg
-  vim.api.nvim_set_hl(0, "WinBarModifiedActive", { fg = tab_sel.fg, bg = tab_sel.bg, italic = true, bold = true })
-  vim.api.nvim_set_hl(0, "WinBarModifiedInactive", { fg = mod_fg, bg = tab.bg, italic = true })
+  vim.api.nvim_set_hl(0, "WinBarActive", { fg = tab_sel.fg, bg = active_bg, bold = true })
+  vim.api.nvim_set_hl(0, "WinBarActiveCap", { fg = active_bg, bg = "NONE" })
+
+  vim.api.nvim_set_hl(0, "WinBarInactive", { fg = tab_sel.bg, bg = tab_sel.fg })
+  vim.api.nvim_set_hl(0, "WinBarInactiveCap", { fg = tab_sel.fg, bg = "NONE", })
+
+  vim.api.nvim_set_hl(0, "WinBarModifiedActive", { fg = tab_sel.fg, bg = active_bg })
+  vim.api.nvim_set_hl(0, "WinBarModifiedActiveCap", { fg = active_bg, bg = "NONE" })
+
+  vim.api.nvim_set_hl(0, "WinBarModifiedInactive", { fg = warn.fg, bg = tab_sel.fg, italic = true })
+  vim.api.nvim_set_hl(0, "WinBarModifiedInactiveCap", { fg = tab_sel.fg, bg = "NONE", })
 end
 setup_highlights()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
@@ -50,22 +57,21 @@ function _G.winbar_buffers()
 
   for _, b in ipairs(vim.api.nvim_list_bufs()) do
     if valid_buf(b) then
-      local name = vim.api.nvim_buf_get_name(b)
-      name = name == "" and "[No Name]" or vim.fn.fnamemodify(name, ":t")
+      local path = vim.api.nvim_buf_get_name(b)
+      local name = path == "" and "Untitled" or vim.fn.fnamemodify(path, ":t")
       local icon = icons.get_icon(vim.bo[b].filetype) or "󰈤"
       local is_cur = (b == cur)
       local is_mod = vim.bo[b].modified
+
       local group = is_cur and (is_mod and "WinBarModifiedActive" or "WinBarActive")
           or (is_mod and "WinBarModifiedInactive" or "WinBarInactive")
-
-      parts[#parts + 1] = string.format(
-        "%%%d@v:lua.goto_buf@%%#%s# %s %s%s %%X",
-        b, group, icon, name, is_mod and " ●" or ""
-      )
+      local cap = group .. "Cap"
+      parts[#parts + 1] = string.format("%%%d@v:lua.goto_buf@%%#%s#%%#%s#%s %s%%#%s#%%X",
+        b, cap, group, icon, name, cap)
     end
   end
 
-  return table.concat(parts) .. "%#Normal#"
+  return table.concat(parts, "") .. "%#Normal#"
 end
 
 local function update(ev)
