@@ -1,101 +1,121 @@
 local M = {}
+local api, fs, fn, notify, log = vim.api, vim.fs, vim.fn, vim.notify, vim.log.levels
 
--- Paste clipboard image
+local FILETYPES = {
+  markdown = { insert = "![%s](%s)", pattern = "!%[.-%]%((.-)%)" },
+  typst = { insert = '#image("%s", width: 70%%)', pattern = '#image%("(.+)"' },
+}
+
+local function doc_dir()
+  return fs.dirname(api.nvim_buf_get_name(0))
+end
+
+local function err(msg)
+  notify(msg, log.ERROR)
+end
+
+local function get_clipboard_cmd(image_path)
+  if fn.has("unix") ~= 1 then
+    return nil, "Error: Unsupported OS."
+  end
+
+  local escaped = fn.shellescape(image_path)
+  if os.getenv("WAYLAND_DISPLAY") and fn.executable("wl-paste") == 1 then
+    return { "sh", "-c", "wl-paste -t image/png > " .. escaped }
+  end
+
+  if fn.executable("xclip") == 1 then
+    return { "sh", "-c", "xclip -selection clipboard -t image/png -o > " .. escaped }
+  end
+
+  return nil, "Error: 'xclip' (X11) or 'wl-paste' (Wayland) not found."
+end
+
 function M.paste()
   local ft = vim.bo.filetype
-  if ft ~= 'markdown' and ft ~= 'typst' then
-    print("Error: Not a markdown or typst file.")
+  local config = FILETYPES[ft]
+  if not config then
+    err("Error: Not a markdown or typst file.")
     return
   end
 
-  local filename_base = vim.fn.input("Image filename (no extension): ")
+  local filename_base = fn.input("Image filename (no extension): ")
   if filename_base == "" then
-    print("Cancelled.")
+    notify("Cancelled.", log.INFO)
     return
   end
 
   local filename = filename_base .. ".png"
-  local current_dir = vim.fn.expand('%:p:h')
-  local assets_dir = current_dir .. "/assets"
-  local image_path = assets_dir .. "/" .. filename
+  local current_dir = doc_dir()
+  local assets_dir = fs.joinpath(current_dir, "assets")
+  local image_path = fs.joinpath(assets_dir, filename)
   local relative_path = "./assets/" .. filename
 
-  if vim.fn.isdirectory(assets_dir) == 0 then
-    vim.fn.mkdir(assets_dir, "p")
+  if fn.isdirectory(assets_dir) == 0 then
+    fn.mkdir(assets_dir, "p")
   end
 
-  local cmd
-  if vim.fn.has('unix') == 1 then
-    if os.getenv('WAYLAND_DISPLAY') and vim.fn.executable('wl-paste') == 1 then
-      cmd = "wl-paste -t image/png > " .. vim.fn.shellescape(image_path)
-      -- cmd = "wl-paste -t image/bmp | convert bmp:- " .. vim.fn.shellescape(image_path)
-    elseif vim.fn.executable('xclip') == 1 then
-      cmd = "xclip -selection clipboard -t image/png -o > " .. vim.fn.shellescape(image_path)
-    else
-      print("Error: 'xclip' (X11) or 'wl-paste' (Wayland) not found.")
-      return
-    end
-  else
-    print("Error: Unsupported OS.")
+  local cmd, cmd_err = get_clipboard_cmd(image_path)
+  if not cmd then
+    err(cmd_err)
     return
   end
 
-  vim.fn.system(cmd)
+  local res = vim.system(cmd):wait()
 
-  if vim.v.shell_error ~= 0 or vim.fn.getfsize(image_path) <= 0 then
-    print("Error: Failed to save image. Is an image in the clipboard?")
-    if vim.fn.filereadable(image_path) == 1 then
-      vim.fn.delete(image_path)
+  if res.code ~= 0 or fn.getfsize(image_path) <= 0 then
+    err("Error: Failed to save image. Is an image in the clipboard?")
+    if fn.filereadable(image_path) == 1 then
+      fn.delete(image_path)
     end
     return
   end
 
-  local line_to_insert
-  if ft == 'markdown' then
-    line_to_insert = "![" .. filename_base .. "](" .. relative_path .. ")"
-  elseif ft == 'typst' then
-    line_to_insert = "#image(\"" .. relative_path .. "\", width: 70%)"
-  end
+  local line = (ft == "markdown")
+      and config.insert:format(filename_base, relative_path)
+      or config.insert:format(relative_path)
 
-  vim.api.nvim_put({ line_to_insert }, 'c', true, true)
-  print("Pasted " .. filename)
+  api.nvim_put({ line }, "c", true, true)
+  notify("Pasted " .. filename, log.INFO)
 end
 
--- Delete image under cursor
 function M.delete()
-  local line = vim.api.nvim_get_current_line()
+  local line = api.nvim_get_current_line()
   local path
 
-  -- Extract image path for markdown
-  path = line:match("!%[.-%]%((.-)%)")
-  -- Extract image path for typst
-  if not path then
-    path = line:match('#image%("(.+)"')
+  for _, cfg in next, FILETYPES do
+    path = line:match(cfg.pattern)
+    if path then
+      break
+    end
   end
 
   if not path then
-    print("No image found on the current line.")
+    notify("No image found on the current line.", log.WARN)
     return
   end
 
-  local current_dir = vim.fn.fnamemodify(vim.fn.expand('%:p:h'), ":p")
-  local image_path = vim.fn.fnamemodify(current_dir .. "/" .. path:gsub("^%./", ""), ":p")
+  local current_dir = doc_dir()
+  local dir_prefix = fn.fnamemodify(current_dir, ":p")
+  local image_path = fn.fnamemodify(dir_prefix .. path:gsub("^%./", ""), ":p")
 
   -- Check that the target path resides inside the document's directory tree to prevent traversal deletion
-  if not vim.startswith(image_path, current_dir) then
-    print("Error: Blocked attempt to delete file outside the document directory.")
+  if not vim.startswith(image_path, dir_prefix) then
+    err("Error: Blocked attempt to delete file outside the document directory.")
     return
   end
 
-  if vim.fn.filereadable(image_path) == 1 then
-    vim.fn.delete(image_path)
-    print("Deleted image: " .. image_path)
+  if fn.filereadable(image_path) == 1 then
+    fn.delete(image_path)
+    notify("Deleted image: " .. image_path, log.INFO)
   else
-    print("Image file does not exist: " .. image_path)
+    notify("Image file does not exist: " .. image_path, log.WARN)
   end
 end
 
-vim.keymap.set('n', '<leader>p', M.paste, { desc = "Paste clipboard image" })
-vim.keymap.set('n', '<leader>d', M.delete, { desc = "Delete image under cursor" })
+function M.setup()
+  vim.keymap.set("n", "<leader>p", M.paste, { desc = "Paste clipboard image" })
+  vim.keymap.set("n", "<leader>d", M.delete, { desc = "Delete image under cursor" })
+end
 
 return M

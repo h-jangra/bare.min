@@ -34,7 +34,7 @@ vim.schedule(function()
   require("bare.lsp_install")
   require("bare.picker")
   require("bare.floaterm")
-  require("bare.imgPaste")
+  require("bare.imgPaste").setup()
 end)
 
 vim.keymap.set('n', '<leader>e', require("bare.filetree").toggle, { desc = "Open file tree" })
