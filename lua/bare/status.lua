@@ -157,7 +157,7 @@ _G.status_line = function()
   if size ~= "" then sec_y = sec_y .. size end
 
   if sec_y ~= "" then
-    sec_y = "%#StlBubbleLeft#" .. "%#StlBubble# " .. sec_y .. " %#StlBubbleRight#"
+    sec_y = "%#StlBubbleLeft#" .. "%#StlBubble#" .. sec_y .. " %#StlBubbleRight#"
   end
 
   local sec_z =

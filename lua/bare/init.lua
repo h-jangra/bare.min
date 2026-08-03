@@ -16,6 +16,7 @@ require('vim._core.ui2').enable({})
 require("bare.theme").setup()
 require("bare.options")
 require("bare.keymaps")
+require("bare.notify").setup()
 
 vim.schedule(function()
   require("bare.buffer")

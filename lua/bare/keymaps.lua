@@ -2,8 +2,8 @@ local map = vim.keymap.set
 local opts = { noremap = true, silent = true }
 
 map("n", "<Esc>", "<cmd>nohlsearch<cr>", opts)
-map("n", "<C-s>", "<cmd>w<cr>", opts)
-map("n", "<leader>o", "<cmd>update<cr>:source %<cr>", { desc = "Save & Reload" })
+map("n", "<C-s>", "<cmd>silent write<cr>", opts)
+map("n", "<leader>o", "<cmd>silent update<cr>:source %<cr>", { desc = "Save & Reload" })
 map("n", "<A-q>", "<cmd>q<cr>", opts)
 map("n", "<leader>a", "ggVG", { desc = "Select All" })
 
@@ -85,6 +85,11 @@ map("n", "<leader>lf", function()
 end, { desc = "LSP Format" })
 map("n", "<leader>li", "gg=G``", { desc = "Indent Entire File" })
 
+-- Notifications
+map("n", "<leader>n", function()
+  require("bare.notify").show_history()
+end, { desc = "Show Notification History" })
+
 -- Config
 map("n", "<leader>fc", function()
   vim.cmd("edit " .. vim.fn.stdpath("config") .. "/init.lua")
@@ -92,4 +97,5 @@ end, { desc = "Edit Config" })
 
 map("i", "jk", "<Esc>", opts)
 map("i", "kj", "<Esc>", opts)
-map("i", "<C-s>", "<Esc><cmd>w<cr>", opts)
+map("i", "<C-s>", "<Esc><cmd>silent write<cr>", opts)
+
