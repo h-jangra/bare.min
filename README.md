@@ -21,7 +21,6 @@ Or load a single module: `require("bare.module")`
 | `bare.imgPaste`   | Paste/Delete images from clipboard into Markdown/Typst files.             |
 | `bare.lsp`        | Native LSP setup.                                                         |
 | `bare.marks`      | Manage marks in buffers.                                                  |
-| `bare.md`         | Markdown styles inside Neovim.                                            |
 | `bare.netrw`      | Short config for better Netrw.                                            |
 | `bare.pairs`      | Automatic pairs insertion for `()`, `{}`, `[]`, `''`, `""`, and `` ` ``.  |
 | `bare.picker`     | Wildmenu auto trigger and file picker with find.                          |

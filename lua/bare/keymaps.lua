@@ -67,15 +67,7 @@ map("n", "<leader>cd", function()
     vim.notify("No diagnostics on this line", vim.log.levels.WARN)
     return
   end
-  vim.fn.setreg(
-    "+",
-    table.concat(
-      vim.tbl_map(function(d)
-        return d.message
-      end, diags),
-      "\n"
-    )
-  )
+  vim.fn.setreg("+", vim.iter(diags):map(function(d) return d.message end):join("\n"))
   vim.notify("Diagnostics copied to clipboard")
 end, { desc = "Copy Line Diagnostics" })
 
@@ -98,4 +90,3 @@ end, { desc = "Edit Config" })
 map("i", "jk", "<Esc>", opts)
 map("i", "kj", "<Esc>", opts)
 map("i", "<C-s>", "<Esc><cmd>silent write<cr>", opts)
-

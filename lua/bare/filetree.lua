@@ -51,13 +51,13 @@ end
 
 local function read_dir(path, cache)
   if cache and cache[path] then return cache[path] end
-  local items, handle = {}, vim.loop.fs_scandir(path)
-  if not handle then return items end
-  while true do
-    local name, type = vim.loop.fs_scandir_next(handle)
-    if not name then break end
-    if state.show_hidden or name:sub(1, 1) ~= "." then
-      table.insert(items, { name = name, path = path .. "/" .. name, is_dir = type == "directory" })
+  local items = {}
+  local ok, dir = pcall(vim.fs.dir, path)
+  if ok and dir then
+    for name, type in dir do
+      if state.show_hidden or name:sub(1, 1) ~= "." then
+        table.insert(items, { name = name, path = vim.fs.joinpath(path, name), is_dir = (type == "directory") })
+      end
     end
   end
   table.sort(items, function(a, b)
@@ -205,7 +205,7 @@ end
 
 local function update_git_status(cb)
   local root = state.root or vim.fn.getcwd()
-  if vim.fn.isdirectory(root .. "/.git") == 0 then
+  if not vim.fs.root(root, ".git") then
     state.git = {}
     if cb then cb() end
     return
@@ -217,10 +217,11 @@ local function update_git_status(cb)
         local status = line:sub(1, 2)
         local file = line:sub(4)
         if file:sub(1, 1) == '"' and file:sub(-1) == '"' then file = file:sub(2, -2) end
+        local full_path = vim.fs.joinpath(root, file)
         if status:match("M") then
-          git[root .. "/" .. file] = "M"
+          git[full_path] = "M"
         elseif status:match("%?%?") or status:match("U") then
-          git[root .. "/" .. file] = "?"
+          git[full_path] = "?"
         end
       end
     end
@@ -375,7 +376,7 @@ local function move_cursor_shift(dir)
 
   if not shift_selecting then
     shift_selecting = true
-    anchor_row = current_row
+    anchor_row = assert(current_row)
     base_selected = vim.deepcopy(state.selected)
   end
 
@@ -576,14 +577,14 @@ local function setup_buffer()
     { "H", function()
       state.show_hidden = not state.show_hidden; render(true)
     end },
-    { "q",       M.close },
-    { "<Esc>",   handle_esc },
-    { "a",       function() create_entry(false) end },
-    { "A",       function() create_entry(true) end },
-    { "d",       delete_item },
-    { "r",       rename_item },
-    { "R",       function() render(true) end },
-    { "m",       toggle_file,                       mode = { "n", "v" } },
+    { "q",     M.close },
+    { "<Esc>", handle_esc },
+    { "a",     function() create_entry(false) end },
+    { "A",     function() create_entry(true) end },
+    { "d",     delete_item },
+    { "r",     rename_item },
+    { "R",     function() render(true) end },
+    { "m",     toggle_file,                       mode = { "n", "v" } },
     { "M", function()
       state.selected = {}; shift_selecting = false; render(false)
     end },

@@ -37,6 +37,12 @@ opt.ttimeoutlen = 10
 opt.mousescroll = "ver:5,hor:0"
 opt.winheight = 1
 
+opt.foldmethod = "expr"
+opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+
+opt.foldlevel = 99
+opt.foldlevelstart = 99
+
 -- Highlight on yank
 vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function()

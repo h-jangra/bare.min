@@ -121,11 +121,11 @@ end
 local function on_attach(_, bufnr)
   if vim.lsp.inlay_hint then vim.lsp.inlay_hint.enable(true, { bufnr = bufnr }) end
   local map = function(m, l, r) vim.keymap.set(m, l, r, { buffer = bufnr }) end
-  map("n", "K", vim.lsp.buf.hover)
+  -- map("n", "K", vim.lsp.buf.hover)
   map({ "n", "i" }, "<C-k>", vim.lsp.buf.signature_help)
-  map("n", "gd", function()
-    vim.lsp.buf.definition(); vim.schedule(function() vim.cmd("normal! zz") end)
-  end)
+  -- map("n", "gd", function()
+  --   vim.lsp.buf.definition(); vim.schedule(function() vim.cmd("normal! zz") end)
+  -- end)
   map("n", "<C-j>", function()
     vim.diagnostic.jump({ count = -1, float = true }); vim.cmd("normal! zz")
   end)
@@ -146,6 +146,12 @@ capabilities.textDocument.completion.completionItem = {
   resolveSupport = { properties = { "documentation", "detail", "additionalTextEdits" } },
 }
 
+local root_markers = {
+  ".git", "pom.xml", "build.gradle", "mvnw", "gradlew", "package.json", "Cargo.toml", "go.mod",
+  "pyproject.toml", "setup.py", "requirements.txt", ".venv", ".luarc.json", "stylua.toml",
+  "pnpm-workspace.yaml", "turbo.json",
+}
+
 local function start_lsp(bufnr)
   local ft = vim.bo[bufnr].filetype
   local names = ft_to_servers[ft]
@@ -157,11 +163,7 @@ local function start_lsp(bufnr)
       vim.lsp.start({
         name = name,
         cmd = cfg.cmd,
-        root_dir = vim.fs.root(bufnr, {
-          ".git", "pom.xml", "build.gradle", "mvnw", "gradlew", "package.json", "Cargo.toml", "go.mod",
-          "pyproject.toml", "setup.py", "requirements.txt", ".venv", ".luarc.json", "stylua.toml",
-          "pnpm-workspace.yaml", "turbo.json",
-        }),
+        root_dir = vim.fs.root(bufnr, root_markers),
         settings = cfg.settings,
         on_attach = on_attach,
         capabilities = capabilities,
@@ -173,10 +175,26 @@ end
 
 local group = vim.api.nvim_create_augroup("LspConfig", { clear = true })
 
-vim.api.nvim_create_autocmd("FileType", {
-  group = group,
-  callback = function(args) start_lsp(args.buf) end,
-})
+if vim.lsp.config then
+  for name, cfg in pairs(servers) do
+    if vim.fn.executable(cfg.cmd[1]) == 1 then
+      vim.lsp.config[name] = {
+        cmd = cfg.cmd,
+        filetypes = cfg.ft,
+        root_markers = root_markers,
+        settings = cfg.settings,
+        capabilities = capabilities,
+        on_attach = on_attach,
+      }
+      vim.lsp.enable(name)
+    end
+  end
+else
+  vim.api.nvim_create_autocmd("FileType", {
+    group = group,
+    callback = function(args) start_lsp(args.buf) end,
+  })
+end
 
 vim.api.nvim_create_autocmd("BufWritePre", {
   group = group,

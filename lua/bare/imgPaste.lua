@@ -51,8 +51,8 @@ function M.paste()
   local image_path = fs.joinpath(assets_dir, filename)
   local relative_path = "./assets/" .. filename
 
-  if fn.isdirectory(assets_dir) == 0 then
-    fn.mkdir(assets_dir, "p")
+  if not vim.uv.fs_stat(assets_dir) then
+    vim.uv.fs_mkdir(assets_dir, 493) -- 0755 permissions
   end
 
   local cmd, cmd_err = get_clipboard_cmd(image_path)
@@ -63,10 +63,11 @@ function M.paste()
 
   local res = vim.system(cmd):wait()
 
-  if res.code ~= 0 or fn.getfsize(image_path) <= 0 then
+  local stat = vim.uv.fs_stat(image_path)
+  if res.code ~= 0 or not stat or stat.size <= 0 then
     err("Error: Failed to save image. Is an image in the clipboard?")
-    if fn.filereadable(image_path) == 1 then
-      fn.delete(image_path)
+    if stat then
+      vim.uv.fs_unlink(image_path)
     end
     return
   end
@@ -96,17 +97,16 @@ function M.delete()
   end
 
   local current_dir = doc_dir()
-  local dir_prefix = fn.fnamemodify(current_dir, ":p")
-  local image_path = fn.fnamemodify(dir_prefix .. path:gsub("^%./", ""), ":p")
+  local image_path = fs.normalize(fs.joinpath(current_dir, path))
 
   -- Check that the target path resides inside the document's directory tree to prevent traversal deletion
-  if not vim.startswith(image_path, dir_prefix) then
+  if not vim.startswith(image_path, current_dir) then
     err("Error: Blocked attempt to delete file outside the document directory.")
     return
   end
 
-  if fn.filereadable(image_path) == 1 then
-    fn.delete(image_path)
+  if vim.uv.fs_stat(image_path) then
+    vim.uv.fs_unlink(image_path)
     notify("Deleted image: " .. image_path, log.INFO)
   else
     notify("Image file does not exist: " .. image_path, log.WARN)

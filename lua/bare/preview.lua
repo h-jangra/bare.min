@@ -10,13 +10,13 @@ local function open(url)
   local opener = vim.fn.has("mac") == 1 and "open"
       or vim.fn.has("unix") == 1 and "xdg-open" or "start"
 
-  vim.fn.jobstart({ opener, url }, { detach = true })
+  vim.system({ opener, url })
 end
 
 local function stop(name)
-  local job = state.jobs[name]
-  if not job then return end
-  vim.fn.jobstop(job)
+  local proc = state.jobs[name]
+  if not proc then return end
+  proc:kill(15)
   state.jobs[name] = nil
 end
 
@@ -28,7 +28,7 @@ local function start_html(port)
   local file = vim.api.nvim_buf_get_name(0)
 
   state.html_port = port or state.html_port
-  state.jobs.html = vim.fn.jobstart({
+  state.jobs.html = vim.system({
     "busybox", "httpd", "-f", "-p", "127.0.0.1:" .. state.html_port,
   }, {
     cwd = vim.fs.dirname(file),
@@ -45,7 +45,7 @@ local function start_markdown(port)
   local file = vim.api.nvim_buf_get_name(0)
 
   state.md_port = port or state.md_port
-  state.jobs.markdown = vim.fn.jobstart({ "grip", file, state.md_port, })
+  state.jobs.markdown = vim.system({ "grip", file, tostring(state.md_port) })
 
   vim.defer_fn(function()
     open("http://localhost:" .. state.md_port)
@@ -58,8 +58,9 @@ local function start_typst()
   local file = vim.api.nvim_buf_get_name(0)
   stop(file)
 
-  state.jobs[file] = vim.fn.jobstart({
-    "tinymist", "preview", file, "--open", }, {
+  state.jobs[file] = vim.system({
+    "tinymist", "preview", file, "--open",
+  }, {
     cwd = vim.fs.dirname(file),
   })
 end

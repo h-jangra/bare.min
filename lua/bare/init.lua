@@ -1,15 +1,5 @@
 vim.loader.enable()
 
--- Disable unused plugins
-for _, plugin in ipairs({
-  "gzip", "zip", "zipPlugin", "tar", "tarPlugin", "getscript", "getscriptPlugin",
-  "vimball", "vimballPlugin", "logipat", "rrhelper", "spellfile_plugin",
-  -- "2html_plugin",
-  -- "netrw", "netrwPlugin", "netrwSettings", "netrwFileHandlers",
-}) do
-  vim.g["loaded_" .. plugin] = 1
-end
-
 vim.opt.shadafile = ""
 
 require('vim._core.ui2').enable({})
@@ -25,7 +15,7 @@ vim.schedule(function()
   require("bare.pairs").setup()
   require("bare.preview").setup()
   require("bare.cmp")
-  -- require("bare.netrw")
+  require("bare.netrw")
 
   require("bare.marks").setup()
   require("bare.surround").setup()

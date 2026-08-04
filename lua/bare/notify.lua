@@ -1,7 +1,8 @@
 local M = {}
 local ui = require("bare.ui")
 
-local active_notifs, history = {}, {}
+local active_notifs = {}
+local history = vim.ringbuf(100)
 M.history = history
 
 local views = { active = {}, history = {} }
@@ -134,8 +135,7 @@ function M.notify(msg, level, opts)
   }
 
   table.insert(active_notifs, notif)
-  table.insert(history, notif)
-  if #history > 100 then table.remove(history, 1) end
+  history:push(notif)
 
   local function refresh() update_view(views.active, active_notifs, false) end
 
@@ -158,7 +158,8 @@ function M.clear()
 end
 
 function M.clear_history()
-  for i = 1, #history do history[i] = nil end
+  history = vim.ringbuf(100)
+  M.history = history
   close_view(views.history)
   vim.notify("Notification history cleared", vim.log.levels.INFO)
 end

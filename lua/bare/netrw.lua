@@ -22,7 +22,8 @@ local function apply_icons(bufnr)
         if is_dir then
           icon, hl = " ", "Directory"
         elseif has_icons then
-          local ft = vim.filetype.match({ filename = name }) or name:match("%.([^.]+)$") or name
+          local fname = vim.fs.basename(name)
+          local ft = vim.filetype.match({ filename = fname }) or fname:match("%.([^.]+)$") or fname
           local i, h = icons.get(ft)
           if i then icon, hl = i .. " ", h end
         end

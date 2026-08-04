@@ -60,7 +60,7 @@ local function get_git_branch(bufnr)
   local root = vim.fs.root(dir, ".git")
   if not root then return "" end
 
-  local git_dir = root .. "/.git"
+  local git_dir = vim.fs.joinpath(root, ".git")
   local stat = vim.uv.fs_stat(git_dir)
   if not stat then return "" end
 
@@ -74,7 +74,8 @@ local function get_git_branch(bufnr)
     end
   end
 
-  local f = io.open(git_dir .. "/HEAD", "r")
+  local head_file = vim.fs.joinpath(git_dir, "HEAD")
+  local f = io.open(head_file, "r")
   if not f then return "" end
   local line = f:read("*l")
   f:close()
@@ -86,7 +87,8 @@ end
 
 local function get_lsp_name(bufnr)
   local clients = vim.lsp.get_clients({ bufnr = bufnr })
-  return clients[1] and clients[1].name or ""
+  if #clients == 0 then return "" end
+  return vim.iter(clients):map(function(c) return c.name end):join(",")
 end
 
 local function update_cache(bufnr)

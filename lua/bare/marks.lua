@@ -1,17 +1,17 @@
 local M = {}
-local sign, group, defined_signs = "BuiltinMark", "BuiltinMarkGroup", {}
+local ns = vim.api.nvim_create_namespace("bare_marks")
 local show_marks
 
 local function place_signs(list, pat, hl, bufnr)
   for _, m in ipairs(list) do
     local name = m.mark:sub(2, 2)
     if name:match(pat) and m.pos and m.pos[2] > 0 and (pat == "[a-z]" or m.pos[1] == bufnr) then
-      local s = sign .. name
-      if not defined_signs[s] then
-        vim.fn.sign_define(s, { text = name, texthl = hl })
-        defined_signs[s] = true
-      end
-      vim.fn.sign_place(0, group, s, bufnr, { lnum = m.pos[2] })
+      local lnum = m.pos[2] - 1
+      pcall(vim.api.nvim_buf_set_extmark, bufnr, ns, lnum, 0, {
+        sign_text = name,
+        sign_hl_group = hl,
+        priority = 10,
+      })
     end
   end
 end
@@ -20,7 +20,7 @@ local function update_signs(opts)
   local bufnr = (opts and opts.buf) or vim.api.nvim_get_current_buf()
   if not vim.api.nvim_buf_is_loaded(bufnr) or vim.bo[bufnr].buftype ~= "" then return end
 
-  vim.fn.sign_unplace(group, { buffer = bufnr })
+  vim.api.nvim_buf_clear_namespace(bufnr, ns, 0, -1)
   place_signs(vim.fn.getmarklist(bufnr), "[a-z]", "Comment", bufnr)
   place_signs(vim.fn.getmarklist(), "[A-Z]", "String", bufnr)
 end

@@ -14,26 +14,26 @@ vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
 _G.goto_buf = function(buf) vim.api.nvim_set_current_buf(buf) end
 
 local function get_valid_bufs()
-  return vim.tbl_filter(function(b)
+  return vim.iter(vim.api.nvim_list_bufs()):filter(function(b)
     if not vim.api.nvim_buf_is_valid(b) or not vim.bo[b].buflisted then return false end
     if vim.bo[b].buftype ~= "" or vim.bo[b].filetype == "filetree" then return false end
     return not vim.api.nvim_buf_get_name(b):find("^term://")
-  end, vim.api.nvim_list_bufs())
+  end):totable()
 end
 
 function _G.winbar_buffers()
   local cur = vim.api.nvim_get_current_buf()
-  local parts = {}
+  local valid = get_valid_bufs()
 
-  for _, b in ipairs(get_valid_bufs()) do
+  local parts = vim.iter(valid):map(function(b)
     local path = vim.api.nvim_buf_get_name(b)
-    local name = path == "" and "Untitled" or vim.fn.fnamemodify(path, ":t")
+    local name = path == "" and "Untitled" or vim.fs.basename(path)
     local icon = icons.get_icon(vim.bo[b].filetype) or "󰈤"
     local hl = (b == cur) and "WinBarActive" or "WinBarInactive"
     local mod = vim.bo[b].modified and " 󱇬" or ""
 
-    parts[#parts + 1] = string.format("%%%d@v:lua.goto_buf@%%#%s# %s %s%s %%X", b, hl, icon, name, mod)
-  end
+    return string.format("%%%d@v:lua.goto_buf@%%#%s# %s %s%s %%X", b, hl, icon, name, mod)
+  end):totable()
 
   return table.concat(parts, "") .. "%#Normal#"
 end
