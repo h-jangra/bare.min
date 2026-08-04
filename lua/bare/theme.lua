@@ -255,6 +255,8 @@ function M.setup()
     NonText = { fg = colors.surface1 },
     NormalFloat = { fg = colors.text, bg = colors.base },
     FloatBorder = { fg = colors.blue, bg = colors.base },
+    NotifyFloat = { fg = colors.text, bg = colors.mantle },
+    NotifyFloatBorder = { fg = colors.blue, bg = colors.mantle },
 
     -- Status line and tabs
     StatusLine = { fg = colors.text, bg = colors.mantle },
