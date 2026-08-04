@@ -3,6 +3,7 @@ vim.opt.complete = { ".", "w", "b", "u" }
 vim.opt.completeopt = { "menuone", "noinsert", "noselect", "popup" }
 vim.opt.pumborder = "rounded"
 -- vim.o.autocomplete = true
+-- vim.o.autocompletedelay = 0
 
 local icons = {
   Text = "󰉿",
