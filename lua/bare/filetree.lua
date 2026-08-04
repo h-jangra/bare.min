@@ -1,23 +1,24 @@
 --[[
 FileTree Keymaps:
-l, <CR>   - Open / expand
-h         - Collapse / go to parent
--         - Go to parent directory as root
-C         - Set highlighted directory as root
-m         - Toggle select / mark mode
-M         - Clear selection
-a         - New file
-A         - New folder
-d         - Delete
-r         - Rename
-y         - Copy file
-x         - Cut file
-p         - Paste file
-Y         - Copy relative path to clipboard
-gy        - Copy absolute path to clipboard
-H         - Toggle hidden files
-q, <Esc>  - Close
-R         - Refresh
+    l, <CR>          - Open / expand
+    h                - Collapse / go to parent
+    -                - Go to parent directory as root
+    C                - Set highlighted directory as root
+    m                - Toggle selection of current file
+    Shift+Up / Down  - Extend contiguous selection
+    M                - Clear selection
+    a                - New file
+    A                - New folder
+    d                - Delete
+    r                - Rename
+    y                - Copy file
+    x                - Cut file
+    p                - Paste file
+    Y                - Copy relative path to clipboard
+    gy               - Copy absolute path to clipboard
+    H                - Toggle hidden files
+    q, <Esc>         - Close (or clear selection if any)
+    R                - Refresh
 ]]
 local M = {}
 local state = {
@@ -27,7 +28,6 @@ local state = {
   selected = {},
   git = {},
   width = 30,
-  mark_mode = false,
 }
 local MIN_WIDTH = 20
 local has_icons, icons = pcall(require, "bare.icons")
@@ -246,8 +246,7 @@ local function render(update_git)
   local root_path = state.root or vim.fn.getcwd()
   local root_name = vim.fn.fnamemodify(root_path, ":t")
   if root_name == "" then root_name = root_path end
-  local root_base = "  " .. root_name
-  local root_text = root_base .. (state.mark_mode and " 󰃀" or "")
+  local root_text = "  " .. root_name
   table.insert(lines, 1, root_text)
 
   state.line_to_path = map
@@ -256,11 +255,7 @@ local function render(update_git)
   vim.api.nvim_buf_set_lines(state.buf, 0, -1, false, lines)
 
   local ns = vim.api.nvim_create_namespace("filetree")
-  vim.api.nvim_buf_set_extmark(state.buf, ns, 0, 0, { end_row = 0, end_col = #root_base, hl_group = "FileTreeRoot" })
-  if state.mark_mode then
-    vim.api.nvim_buf_set_extmark(state.buf, ns, 0, #root_base,
-      { end_row = 0, end_col = #root_text, hl_group = "FileTreeSelected" })
-  end
+  vim.api.nvim_buf_set_extmark(state.buf, ns, 0, 0, { end_row = 0, end_col = #root_text, hl_group = "FileTreeRoot" })
 
   for _, m in ipairs(extmarks) do
     if m.hl then
@@ -356,32 +351,62 @@ local function collapse()
   end
 end
 
+local shift_selecting = false
+local anchor_row = nil
+local base_selected = nil
+
 local function move_cursor(dir)
+  shift_selecting = false
   if not (state.win and vim.api.nvim_win_is_valid(state.win)) then return end
   local cursor = vim.api.nvim_win_get_cursor(state.win)
   local total = vim.api.nvim_buf_line_count(state.buf)
   local target = math.max(2, math.min(total, cursor[1] + dir))
   vim.api.nvim_win_set_cursor(state.win, { target, cursor[2] })
-  if state.mark_mode then
-    local item = get_item()
-    if item then
-      state.selected[item.path] = not state.selected[item.path] or nil
-      render(false)
-    end
-  end
 end
 
-local function exit_mark_mode()
-  if state.mark_mode then
-    state.mark_mode = false; render(false)
+local function move_cursor_shift(dir)
+  if not (state.win and vim.api.nvim_win_is_valid(state.win)) then return end
+  local cursor = vim.api.nvim_win_get_cursor(state.win)
+  local current_row = cursor[1]
+  local total = vim.api.nvim_buf_line_count(state.buf)
+  local target_row = math.max(2, math.min(total, current_row + dir))
+
+  if target_row == current_row then return end
+
+  if not shift_selecting then
+    shift_selecting = true
+    anchor_row = current_row
+    base_selected = vim.deepcopy(state.selected)
   end
+
+  vim.api.nvim_win_set_cursor(state.win, { target_row, cursor[2] })
+
+  state.selected = vim.deepcopy(base_selected)
+
+  local start_row = math.min(anchor_row, target_row)
+  local end_row = math.max(anchor_row, target_row)
+  for r = start_row, end_row do
+    local item = state.line_to_path[r - 1]
+    if item then
+      state.selected[item.path] = true
+    end
+  end
+
+  render(false)
 end
 
 local function handle_esc()
-  if state.mark_mode then exit_mark_mode() else M.close() end
+  shift_selecting = false
+  if next(state.selected) ~= nil then
+    state.selected = {}
+    render(false)
+  else
+    M.close()
+  end
 end
 
-local function toggle_select()
+local function toggle_file()
+  shift_selecting = false
   local mode = vim.api.nvim_get_mode().mode
   if mode == "v" or mode == "V" or mode == "\22" then
     vim.cmd("normal! \27")
@@ -393,10 +418,11 @@ local function toggle_select()
     end
     render(false)
   else
-    state.mark_mode = not state.mark_mode
     local item = get_item()
-    if item then state.selected[item.path] = not state.selected[item.path] or nil end
-    render(false)
+    if item then
+      state.selected[item.path] = not state.selected[item.path] or nil
+      render(false)
+    end
   end
 end
 
@@ -495,7 +521,7 @@ function clipboard.copy(move)
   if not item then return end
   local paths = selected_paths(item)
   state.clipboard = { paths = paths, move = move }
-  state.mark_mode = false
+  shift_selecting = false
   local names = {}
   for _, p in ipairs(paths) do table.insert(names, vim.fn.fnamemodify(p, ":t")) end
   local action = move and "Cut" or "Copied"
@@ -541,23 +567,25 @@ local function setup_buffer()
     { "C", function()
       local item = get_item(); if item and item.is_dir then change_root(item.path) end
     end },
-    { "j",      function() move_cursor(1) end },
-    { "<Down>", function() move_cursor(1) end },
-    { "k",      function() move_cursor(-1) end },
-    { "<Up>",   function() move_cursor(-1) end },
+    { "j",        function() move_cursor(1) end },
+    { "<Down>",   function() move_cursor(1) end },
+    { "k",        function() move_cursor(-1) end },
+    { "<Up>",     function() move_cursor(-1) end },
+    { "<S-Down>", function() move_cursor_shift(1) end },
+    { "<S-Up>",   function() move_cursor_shift(-1) end },
     { "H", function()
       state.show_hidden = not state.show_hidden; render(true)
     end },
-    { "q",     M.close },
-    { "<Esc>", handle_esc },
-    { "a",     function() create_entry(false) end },
-    { "A",     function() create_entry(true) end },
-    { "d",     delete_item },
-    { "r",     rename_item },
-    { "R",     function() render(true) end },
-    { "m",     toggle_select,                     mode = { "n", "v" } },
+    { "q",       M.close },
+    { "<Esc>",   handle_esc },
+    { "a",       function() create_entry(false) end },
+    { "A",       function() create_entry(true) end },
+    { "d",       delete_item },
+    { "r",       rename_item },
+    { "R",       function() render(true) end },
+    { "m",       toggle_file,                       mode = { "n", "v" } },
     { "M", function()
-      state.selected = {}; state.mark_mode = false; render(false)
+      state.selected = {}; shift_selecting = false; render(false)
     end },
     { "y",  function() clipboard.copy(false) end },
     { "x",  function() clipboard.copy(true) end },
@@ -586,7 +614,7 @@ function M.open()
 end
 
 function M.close()
-  state.mark_mode = false
+  shift_selecting = false
   if state.win and vim.api.nvim_win_is_valid(state.win) then
     if #vim.api.nvim_list_wins() > 1 then vim.api.nvim_win_close(state.win, true) end
     state.win = nil

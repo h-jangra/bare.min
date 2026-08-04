@@ -50,23 +50,10 @@ vim.diagnostic.config({
 
 local function enable_blur()
   local groups = {
-    "Normal",
-    "NormalNC",
-    "SignColumn",
-    "FoldColumn",
-    "EndOfBuffer",
-    "LineNr",
-    "CursorLineNr",
-    -- "StatusLine",
-    -- "StatusLineNC",
-    "TabLine",
-    "TabLineFill",
-    "NormalFloat",
-    "FloatBorder",
-    "Pmenu",
-    "PmenuSbar",
-    "PmenuBorder",
-    "PmenuShadow",
+    "Normal", "NormalNC", "SignColumn", "FoldColumn", "EndOfBuffer",
+    "LineNr", "CursorLineNr", "StatusLine", "StatusLineNC",
+    "TabLine", "TabLineFill", "NormalFloat", "FloatBorder",
+    "Pmenu", "PmenuSbar", "PmenuBorder", "PmenuShadow",
   }
 
   for _, group in ipairs(groups) do
@@ -78,8 +65,6 @@ local function enable_blur()
   end
 end
 
-vim.api.nvim_create_autocmd("ColorScheme", {
-  callback = enable_blur,
-})
+vim.api.nvim_create_autocmd("ColorScheme", { callback = enable_blur, })
 
 enable_blur()

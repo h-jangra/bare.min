@@ -44,9 +44,6 @@ local function setup_highlights()
   local warn = get_hl("DiagnosticSignWarn")
   local err = get_hl("DiagnosticSignError")
 
-  vim.api.nvim_set_hl(0, "StatusLine", { fg = norm_fg, bg = "NONE" })
-  vim.api.nvim_set_hl(0, "StatusLineNC", { fg = norm_fg, bg = "NONE" })
-
   vim.api.nvim_set_hl(0, "StlBubble", { fg = norm_fg, bg = stl_bg })
   vim.api.nvim_set_hl(0, "StlBubbleCap", { fg = stl_bg, bg = "NONE" })
   vim.api.nvim_set_hl(0, "StlAccent", { fg = git.fg or func.fg or warn.fg or norm_fg, bg = stl_bg })
@@ -131,7 +128,7 @@ function M.statusline()
 
   local buf_cache = cache[bufnr]
   if buf_cache.git ~= "" then
-    sec_b = sec_b .. "  %#StlAccent#" .. buf_cache.git .. "%#StlBubble#"
+    sec_b = sec_b .. " %#StlAccent#" .. buf_cache.git .. "%#StlBubble#"
   end
 
   sec_b = sec_b .. get_diag_status() .. "%#StlBubbleCap#"
@@ -141,7 +138,7 @@ function M.statusline()
     sec_y = "%#StlBubbleCap#%#StlBubble#%#StlAccent#" .. buf_cache.lsp .. " "
   end
 
-  local sec_z = (buf_cache.lsp ~= "" and "%#StlMode#" or "%#StlModeCap#%#StlMode#") .. "%L%#StlModeCap#"
+  local sec_z = (buf_cache.lsp ~= "" and "%#StlMode#" or "%#StlModeCap#%#StlMode#") .. " %L%#StlModeCap#"
 
   return sec_a .. sec_b .. "%=" .. sec_y .. sec_z
 end
@@ -150,17 +147,10 @@ setup_highlights()
 
 local augroup = vim.api.nvim_create_augroup("StlCache", { clear = true })
 
-vim.api.nvim_create_autocmd("ColorScheme", {
-  group = augroup,
-  callback = setup_highlights,
-})
+vim.api.nvim_create_autocmd("ColorScheme", { group = augroup, callback = setup_highlights, })
 
-vim.api.nvim_create_autocmd({ "BufEnter", "DirChanged" }, {
-  group = augroup,
-  callback = function(args)
-    update_cache(args.buf)
-  end,
-})
+vim.api.nvim_create_autocmd({ "BufEnter", "DirChanged" },
+  { group = augroup, callback = function(args) update_cache(args.buf) end, })
 
 vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach" }, {
   group = augroup,
@@ -174,20 +164,16 @@ vim.api.nvim_create_autocmd({ "LspAttach", "LspDetach" }, {
   end,
 })
 
-vim.api.nvim_create_autocmd("ModeChanged", {
-  group = augroup,
-  callback = function()
-    update_mode_hl()
-    vim.cmd.redrawstatus()
-  end,
-})
+vim.api.nvim_create_autocmd("ModeChanged",
+  {
+    group = augroup,
+    callback = function()
+      update_mode_hl()
+      vim.cmd.redrawstatus()
+    end,
+  })
 
-vim.api.nvim_create_autocmd("BufWipeout", {
-  group = augroup,
-  callback = function(args)
-    cache[args.buf] = nil
-  end,
-})
+vim.api.nvim_create_autocmd("BufWipeout", { group = augroup, callback = function(args) cache[args.buf] = nil end, })
 
 vim.o.statusline = "%!v:lua.require('bare.status').statusline()"
 
