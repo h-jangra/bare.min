@@ -24,7 +24,7 @@ opt.smartindent = true
 opt.incsearch = true
 
 opt.undofile = true
-opt.undodir = vim.fn.stdpath("data") .. "/undodir"
+opt.undodir = vim.fs.joinpath(vim.fn.stdpath("data"), "undodir")
 opt.swapfile = false
 opt.backup = false
 opt.autoread = true
@@ -40,28 +40,22 @@ opt.winheight = 1
 -- Highlight on yank
 vim.api.nvim_create_autocmd("TextYankPost", {
   callback = function()
-    vim.hl.on_yank({ higroup = "Visual", timeout = 150 })
+    vim.hl.on_yank { higroup = "Visual", timeout = 150 }
   end,
 })
 
-vim.diagnostic.config({
-  virtual_text = { current_line = true },
-})
+vim.diagnostic.config({ virtual_text = { current_line = true }, })
 
 local function enable_blur()
-  local groups = {
+  for _, g in ipairs({
     "Normal", "NormalNC", "SignColumn", "FoldColumn", "EndOfBuffer",
     "LineNr", "CursorLineNr", "StatusLine", "StatusLineNC",
     "TabLine", "TabLineFill", "NormalFloat", "FloatBorder",
     "Pmenu", "PmenuSbar", "PmenuBorder", "PmenuShadow",
-  }
-
-  for _, group in ipairs(groups) do
-    local ok, hl = pcall(vim.api.nvim_get_hl, 0, { name = group })
-    if ok then
-      hl.bg = "NONE"
-      vim.api.nvim_set_hl(0, group, hl)
-    end
+  }) do
+    local hl = vim.api.nvim_get_hl(0, { name = g })
+    hl.bg = "NONE"
+    vim.api.nvim_set_hl(0, g, hl)
   end
 end
 
