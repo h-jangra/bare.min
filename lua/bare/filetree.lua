@@ -14,6 +14,7 @@ FileTree Keymaps:
     y                - Copy file
     x                - Cut file
     p                - Paste file
+    u                - Undo last operation
     Y                - Copy relative path to clipboard
     gy               - Copy absolute path to clipboard
     H                - Toggle hidden files
@@ -21,6 +22,10 @@ FileTree Keymaps:
     R                - Refresh
 ]]
 local M = {}
+local uv = vim.uv or vim.loop
+local function file_exists(path)
+  return uv.fs_stat(path) ~= nil
+end
 local state = {
   expanded = {},
   show_hidden = false,
@@ -28,6 +33,7 @@ local state = {
   selected = {},
   git = {},
   width = 30,
+  undo_stack = {},
 }
 local MIN_WIDTH = 20
 local has_icons, icons = pcall(require, "bare.icons")
@@ -449,6 +455,34 @@ local function copy_path(rel)
   end
 end
 
+local function copy_recursive(src, dest)
+  if vim.fn.isdirectory(src) == 1 then
+    vim.fn.mkdir(dest, "p")
+    local ok, dir = pcall(vim.fs.dir, src)
+    if ok and dir then
+      for name, _ in dir do
+        copy_recursive(vim.fs.joinpath(src, name), vim.fs.joinpath(dest, name))
+      end
+    end
+    return true
+  end
+  local sf = io.open(src, "rb")
+  if not sf then return false end
+  local data = sf:read("*a")
+  sf:close()
+  local df = io.open(dest, "wb")
+  if not df then return false end
+  df:write(data)
+  df:close()
+  return true
+end
+
+local function get_trash_dir()
+  local dir = vim.fs.joinpath(vim.fn.stdpath("cache"), "filetree_trash")
+  vim.fn.mkdir(dir, "p")
+  return dir
+end
+
 local function create_entry(is_dir)
   local parent = current_dir()
   local prompt = is_dir and "New directory: " or "New file: "
@@ -457,15 +491,29 @@ local function create_entry(is_dir)
     local path = parent .. "/" .. name
     if is_dir then
       vim.fn.mkdir(path, "p")
+      table.insert(state.undo_stack, {
+        type = "create",
+        path = path,
+        is_dir = true,
+        name = name,
+      })
       state.expanded[parent] = true
       render(true)
     else
       vim.fn.mkdir(vim.fn.fnamemodify(path, ":h"), "p")
       local f = io.open(path, "w")
-      if f then f:close() end
-      state.expanded[parent] = true
-      render(true)
-      vim.schedule(function() open_file() end)
+      if f then
+        f:close()
+        table.insert(state.undo_stack, {
+          type = "create",
+          path = path,
+          is_dir = false,
+          name = name,
+        })
+        state.expanded[parent] = true
+        render(true)
+        vim.schedule(function() open_file() end)
+      end
     end
   end)
 end
@@ -476,7 +524,30 @@ local function delete_item()
   local paths = selected_paths(item)
   vim.ui.input({ prompt = "Delete " .. #paths .. " items? (y/N): " }, function(confirm)
     if confirm and confirm:lower() == "y" then
-      for _, p in ipairs(paths) do vim.fn.delete(p, vim.fn.isdirectory(p) == 1 and "rf" or "") end
+      local undo_items = {}
+      local trash_base = get_trash_dir() .. "/" .. os.time() .. "_" .. math.random(1000, 9999)
+      vim.fn.mkdir(trash_base, "p")
+      for idx, p in ipairs(paths) do
+        local is_dir = (vim.fn.isdirectory(p) == 1)
+        local name = vim.fn.fnamemodify(p, ":t")
+        local backup_path = trash_base .. "/" .. idx .. "_" .. name
+        if copy_recursive(p, backup_path) then
+          vim.fn.delete(p, is_dir and "rf" or "")
+          table.insert(undo_items, {
+            original_path = p,
+            backup_path = backup_path,
+            is_dir = is_dir,
+            name = name,
+          })
+        end
+      end
+      if #undo_items > 0 then
+        table.insert(state.undo_stack, {
+          type = "delete",
+          items = undo_items,
+          trash_base = trash_base,
+        })
+      end
       state.selected = {}
       render(true)
     end
@@ -489,30 +560,21 @@ local function rename_item()
   local old_name = vim.fn.fnamemodify(item.path, ":t")
   vim.ui.input({ prompt = "Rename: ", default = old_name }, function(new_name)
     if not (new_name and new_name ~= "" and new_name ~= old_name) then return end
-    local new_path = vim.fn.fnamemodify(item.path, ":h") .. "/" .. new_name
-    if os.rename(item.path, new_path) then
-      state.expanded[new_path] = state.expanded[item.path]
-      state.expanded[item.path] = nil
+    local old_path = item.path
+    local new_path = vim.fn.fnamemodify(old_path, ":h") .. "/" .. new_name
+    if os.rename(old_path, new_path) then
+      table.insert(state.undo_stack, {
+        type = "rename",
+        old_path = old_path,
+        new_path = new_path,
+        old_name = old_name,
+        new_name = new_name,
+      })
+      state.expanded[new_path] = state.expanded[old_path]
+      state.expanded[old_path] = nil
       render(true)
     end
   end)
-end
-
-local function copy_recursive(src, dest)
-  if vim.fn.isdirectory(src) == 1 then
-    vim.fn.mkdir(dest, "p")
-    for _, item in ipairs(read_dir(src)) do copy_recursive(item.path, dest .. "/" .. item.name) end
-    return true
-  end
-  local sf = io.open(src, "rb")
-  if not sf then return false end
-  local data = sf:read("*a")
-  sf:close()
-  local df = io.open(dest, "wb")
-  if not df then return false end
-  df:write(data)
-  df:close()
-  return true
 end
 
 local clipboard = {}
@@ -535,17 +597,96 @@ function clipboard.paste()
   if not state.clipboard then return end
   local dest = current_dir()
   local names = {}
+  local is_move = state.clipboard.move
+  local undo_items = {}
   for _, src in ipairs(state.clipboard.paths) do
     local name = vim.fn.fnamemodify(src, ":t")
-    table.insert(names, name)
     local target = dest .. "/" .. name
-    if state.clipboard.move then os.rename(src, target) else copy_recursive(src, target) end
+    local is_dir = (vim.fn.isdirectory(src) == 1)
+    if is_move then
+      if os.rename(src, target) then
+        table.insert(names, name)
+        table.insert(undo_items, { src = src, target = target, is_dir = is_dir })
+      end
+    else
+      if copy_recursive(src, target) then
+        table.insert(names, name)
+        table.insert(undo_items, { src = src, target = target, is_dir = is_dir })
+      end
+    end
   end
-  if state.clipboard.move then state.clipboard = nil end
+  if #undo_items > 0 then
+    table.insert(state.undo_stack, {
+      type = is_move and "move" or "copy",
+      items = undo_items,
+    })
+  end
+  if is_move then state.clipboard = nil end
   state.selected = {}
   render(true)
-  vim.notify((#names == 1) and ("Pasted: " .. names[1]) or
-    ("Pasted " .. #names .. " items: " .. table.concat(names, ", ")))
+  if #names > 0 then
+    vim.notify((#names == 1) and ("Pasted: " .. names[1]) or
+      ("Pasted " .. #names .. " items: " .. table.concat(names, ", ")))
+  end
+end
+
+local function undo_operation()
+  if #state.undo_stack == 0 then
+    vim.notify("Nothing to undo", vim.log.levels.WARN)
+    return
+  end
+  local action = table.remove(state.undo_stack)
+  if action.type == "create" then
+    if file_exists(action.path) then
+      vim.fn.delete(action.path, action.is_dir and "rf" or "")
+      vim.notify("Undid creation: " .. action.name)
+    else
+      vim.notify("Cannot undo creation (file not found): " .. action.path, vim.log.levels.WARN)
+    end
+  elseif action.type == "rename" then
+    if file_exists(action.new_path) then
+      os.rename(action.new_path, action.old_path)
+      state.expanded[action.old_path] = state.expanded[action.new_path]
+      state.expanded[action.new_path] = nil
+      vim.notify("Undid rename: " .. action.new_name .. " -> " .. action.old_name)
+    else
+      vim.notify("Cannot undo rename (file not found): " .. action.new_path, vim.log.levels.WARN)
+    end
+  elseif action.type == "copy" then
+    local count = 0
+    for _, item in ipairs(action.items) do
+      if file_exists(item.target) then
+        vim.fn.delete(item.target, item.is_dir and "rf" or "")
+        count = count + 1
+      end
+    end
+    vim.notify("Undid paste (copy) for " .. count .. " item(s)")
+  elseif action.type == "move" then
+    local count = 0
+    for _, item in ipairs(action.items) do
+      if file_exists(item.target) then
+        os.rename(item.target, item.src)
+        count = count + 1
+      end
+    end
+    vim.notify("Undid paste (move) for " .. count .. " item(s)")
+  elseif action.type == "delete" then
+    local count = 0
+    for _, item in ipairs(action.items) do
+      if file_exists(item.backup_path) then
+        vim.fn.mkdir(vim.fn.fnamemodify(item.original_path, ":h"), "p")
+        if copy_recursive(item.backup_path, item.original_path) then
+          vim.fn.delete(item.backup_path, item.is_dir and "rf" or "")
+          count = count + 1
+        end
+      end
+    end
+    if action.trash_base and file_exists(action.trash_base) then
+      vim.fn.delete(action.trash_base, "rf")
+    end
+    vim.notify("Undid deletion of " .. count .. " item(s)")
+  end
+  render(true)
 end
 
 local function resize(delta)
@@ -583,6 +724,7 @@ local function setup_buffer()
     { "A",     function() create_entry(true) end },
     { "d",     delete_item },
     { "r",     rename_item },
+    { "u",     undo_operation },
     { "R",     function() render(true) end },
     { "m",     toggle_file,                       mode = { "n", "v" } },
     { "M", function()

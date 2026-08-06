@@ -16,11 +16,11 @@ vim.schedule(function()
   require("bare.preview").setup()
   require("bare.cmp")
   require("bare.netrw")
-
+  --
   require("bare.marks").setup()
   require("bare.surround").setup()
   require("bare.lsp")
-  require("bare.lsp_install")
+  -- require("bare.lsp_install")
   require("bare.picker")
   require("bare.floaterm")
   require("bare.imgPaste").setup()

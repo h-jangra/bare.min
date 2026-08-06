@@ -39,10 +39,8 @@ function M.open(cmd, title)
   vim.cmd.startinsert()
 end
 
-vim.api.nvim_create_user_command("Floaterm", function(o) M.open(o.args) end, { nargs = "?", desc = "Open floating terminal" })
+vim.api.nvim_create_user_command("Floaterm", function(o) M.open(o.args) end,
+  { nargs = "?", desc = "Open floating terminal" })
 vim.keymap.set("n", "<leader>t", M.open, { desc = "Toggle floating terminal" })
 
 return M
-
-
-
