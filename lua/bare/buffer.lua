@@ -15,9 +15,7 @@ _G.goto_buf = function(buf) vim.api.nvim_set_current_buf(buf) end
 
 local function get_valid_bufs()
   return vim.iter(vim.api.nvim_list_bufs()):filter(function(b)
-    if not vim.api.nvim_buf_is_valid(b) or not vim.bo[b].buflisted then return false end
-    if vim.bo[b].buftype ~= "" or vim.bo[b].filetype == "filetree" then return false end
-    return not vim.api.nvim_buf_get_name(b):find("^term://")
+    return vim.api.nvim_buf_is_valid(b) and vim.bo[b].buflisted
   end):totable()
 end
 
@@ -50,14 +48,18 @@ local function update(ev)
     if vim.api.nvim_win_is_valid(win) then
       local buf = vim.api.nvim_win_get_buf(win)
       local cfg = vim.api.nvim_win_get_config(win)
-      if cfg.relative == "" and vim.bo[buf].buftype == "" and show_winbar then
+      if cfg.relative == "" and vim.bo[buf].buflisted and show_winbar then
         vim.wo[win].winbar = "%{%v:lua.winbar_buffers()%}"
       else
-        vim.wo[win].winbar = nil
+        vim.wo[win].winbar = ""
       end
     end
   end
 end
+
+vim.api.nvim_create_autocmd("TermOpen", {
+  callback = function(ev) vim.bo[ev.buf].buflisted = false end,
+})
 
 vim.api.nvim_create_autocmd(
   { "BufAdd", "BufDelete", "BufWipeout", "BufUnload", "BufEnter", "BufModifiedSet", "WinEnter", "BufWinEnter" },
