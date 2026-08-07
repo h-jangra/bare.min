@@ -48,7 +48,7 @@ Optional language servers:
 | `bare.netrw`      | Short config for better Netrw.                                            |
 | `bare.pairs`      | Automatic pairs insertion for `()`, `{}`, `[]`, `''`, `""`, and `` ` ``.  |
 | `bare.picker`     | Wildmenu auto trigger and file picker with find.                          |
-| `bare.present`    | YouTube presentation mode with dimmed code and progressive block reveal. |
+| `bare.present`    | Presentation mode with dimmed code and progressive block reveal. |
 | `bare.preview`    | Preview HTML, Markdown, and Typst files in browser.                       |
 | `bare.status`     | Minimal status line.                                                      |
 | `bare.surround`   | Easily add/change/delete surrounding characters.                          |
@@ -56,7 +56,7 @@ Optional language servers:
 
 ## Presentation Mode Keybindings
 
-Designed for YouTube recordings and code walkthroughs:
+Designed for code walkthroughs:
 
 - `<leader>ps`: Start presentation mode (Dims all code blocks to subtle grey).
 - `<leader>pn` or `<Alt-n>`: Reveal / Focus **Next** code block.

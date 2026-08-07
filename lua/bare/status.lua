@@ -12,26 +12,30 @@ api.nvim_set_hl(0, "StlAccent", { fg = "#81c8be", bg = bg })
 api.nvim_set_hl(0, "StlDiagErr", { fg = "#e78284", bg = bg, bold = true })
 api.nvim_set_hl(0, "StlDiagWarn", { fg = "#e5c890", bg = bg })
 
-local modes = {
-  n       = { letter = "N", color = "#8caaee" },
-  i       = { letter = "I", color = "#99d1db" },
-  v       = { letter = "V", color = "#ca9ee6" },
-  V       = { letter = "V", color = "#ca9ee6" },
-  ["\22"] = { letter = "V", color = "#ca9ee6" },
-  R       = { letter = "R", color = "#eebebe" },
-  c       = { letter = "C", color = "#e5c890" },
-  t       = { letter = "T", color = "#ea999c" },
+local mode_colors = {
+  N = "#8caaee",
+  I = "#99d1db",
+  V = "#ca9ee6",
+  R = "#eebebe",
+  C = "#e5c890",
+  T = "#ea999c",
 }
 
-local seen = {}
-
-for _, m in pairs(modes) do
-  if not seen[m.letter] then
-    seen[m.letter] = true
-    api.nvim_set_hl(0, "StlMode" .. m.letter, { fg = bg, bg = m.color, bold = true })
-    api.nvim_set_hl(0, "StlCap" .. m.letter, { fg = m.color, bg = "NONE" })
-  end
+for letter, color in pairs(mode_colors) do
+  api.nvim_set_hl(0, "StlMode" .. letter, { fg = bg, bg = color, bold = true })
+  api.nvim_set_hl(0, "StlCap" .. letter, { fg = color, bg = "NONE" })
 end
+
+local modes = {
+  n       = "N",
+  i       = "I",
+  v       = "V",
+  V       = "V",
+  ["\22"] = "V",
+  R       = "R",
+  c       = "C",
+  t       = "T",
+}
 
 local cache = {}
 
@@ -78,10 +82,7 @@ end
 
 local function update_cache(bufnr)
   bufnr = (bufnr and bufnr ~= 0) and bufnr or api.nvim_get_current_buf()
-  cache[bufnr] = {
-    git = get_git_branch(bufnr),
-    lsp = get_lsp_name(bufnr),
-  }
+  cache[bufnr] = get_git_branch(bufnr)
 end
 
 local function get_diag_status()
@@ -94,8 +95,24 @@ local function get_diag_status()
   return str
 end
 
+local function get_search_count()
+  if vim.v.hlsearch ~= 1 or fn.getreg("/") == "" then
+    return ""
+  end
+  local ok, res = pcall(fn.searchcount, { maxcount = 999, timeout = 50 })
+  if ok and res and res.total and res.total > 0 then
+    return string.format("%d/%d", res.current, res.total)
+  end
+  return ""
+end
+
+local function get_macro()
+  local reg = fn.reg_recording()
+  return reg ~= "" and ("󰑋" .. reg) or ""
+end
+
 function M.statusline()
-  local mode_info = modes[api.nvim_get_mode().mode] or modes.n
+  local letter = modes[api.nvim_get_mode().mode] or "N"
   local bufnr = api.nvim_get_current_buf()
 
   if not cache[bufnr] then
@@ -110,41 +127,64 @@ function M.statusline()
   end
 
   local file_hl = vim.bo.modified and " %#StlAccent#" or " %#StlBubble#"
-  local buf_cache = cache[bufnr]
+  local git = cache[bufnr] or ""
 
-  local hl = "StlMode" .. mode_info.letter
-  local cap = "StlCap" .. mode_info.letter
+  local hl = "StlMode" .. letter
+  local cap = "StlCap" .. letter
 
-  local left = "%#" .. cap .. "#%#" .. hl .. "#" .. mode_info.letter .. " %#StlBubble#" .. file_hl .. file
-  if buf_cache.git ~= "" then
-    left = left .. " %#StlAccent#" .. buf_cache.git .. "%#StlBubble#"
+  local left = "%#" .. cap .. "#%#" .. hl .. "#" .. letter .. " %#StlBubble#" .. file_hl .. file
+  if git ~= "" then
+    left = left .. " %#StlAccent#" .. git .. "%#StlBubble#"
   end
   left = left .. get_diag_status() .. "%#StlBubbleCap#"
 
-  local right = ""
-  if buf_cache.lsp ~= "" then
-    right = "%#StlBubbleCap#%#StlBubble#%#StlAccent#" .. buf_cache.lsp .. " "
+  local macro = get_macro()
+  local search = get_search_count()
+  local lsp = get_lsp_name(bufnr)
+
+  local right_content = ""
+  if macro ~= "" then
+    right_content = "%#StlDiagWarn#" .. macro
   end
+  if search ~= "" then
+    right_content = right_content .. (right_content ~= "" and " %#StlBubble#┊ " or "") .. "%#StlBubble#" .. search
+  end
+  if lsp ~= "" then
+    right_content = right_content .. (right_content ~= "" and " %#StlBubble#┊ " or "") .. "%#StlAccent#" .. lsp
+  end
+
+  local right = ""
+  if right_content ~= "" then
+    right = "%#StlBubbleCap#%#StlBubble#" .. right_content .. " "
+  end
+  local line = (right_content ~= "" and " %L" or "%L")
   right = right ..
-      (buf_cache.lsp ~= "" and "%#" .. hl .. "#" or "%#" .. cap .. "#%#" .. hl .. "#") .. " %L%#" .. cap .. "#"
+  (right_content ~= "" and "%#" .. hl .. "#" or "%#" .. cap .. "#%#" .. hl .. "#") .. line .. "%#" .. cap .. "#"
 
   return left .. "%=" .. right
 end
 
 local augroup = api.nvim_create_augroup("StlCache", { clear = true })
 
+local function redraw()
+  vim.cmd.redrawstatus()
+end
+
 api.nvim_create_autocmd({ "BufEnter", "DirChanged" },
   { group = augroup, callback = function(args) update_cache(args.buf) end })
 
-api.nvim_create_autocmd({ "LspAttach", "LspDetach" }, {
+api.nvim_create_autocmd({ "LspAttach", "LspDetach", "RecordingEnter", "RecordingLeave" },
+  {
+    group = augroup,
+    callback = redraw,
+  })
+
+api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
   group = augroup,
-  callback = function(args)
-    if cache[args.buf] then
-      cache[args.buf].lsp = get_lsp_name(args.buf)
-    else
-      update_cache(args.buf)
+  callback = function()
+    if vim.v.hlsearch == 1 then
+      redraw()
     end
-    vim.cmd.redrawstatus()
   end,
 })
 

@@ -1,6 +1,6 @@
 local opt = vim.opt
 
-opt.cmdheight = 1
+opt.cmdheight = 0
 opt.number = true
 opt.relativenumber = true
 opt.signcolumn = "yes:1"

@@ -3,7 +3,7 @@ local api, fs, fn, notify, log = vim.api, vim.fs, vim.fn, vim.notify, vim.log.le
 
 local FILETYPES = {
   markdown = { insert = "![%s](%s)", pattern = "!%[.-%]%((.-)%)" },
-  typst = { insert = '#image("%s", width: 70%%)', pattern = '#image%("(.+)"' },
+  typst = { insert = '#image("%s", width: 100%%)', pattern = '#image%("(.+)"' },
 }
 
 local function doc_dir()
