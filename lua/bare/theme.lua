@@ -252,7 +252,7 @@ function M.setup()
     FoldColumn = { bg = colors.base, fg = colors.surface2 },
     SignColumn = { bg = colors.base, fg = colors.overlay0 },
     MatchParen = { fg = colors.peach, bold = true },
-    NonText = { fg = colors.surface1 },
+    NonText = { fg = colors.surface0 },
     NormalFloat = { fg = colors.text, bg = colors.base },
     FloatBorder = { fg = colors.blue, bg = colors.base },
     NotifyFloat = { fg = colors.text, bg = colors.mantle },

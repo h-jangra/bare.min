@@ -1,6 +1,6 @@
 local opt = vim.opt
 
-opt.cmdheight = 0
+opt.cmdheight = 1
 opt.number = true
 opt.relativenumber = true
 opt.signcolumn = "yes:1"
@@ -39,9 +39,11 @@ opt.winheight = 1
 
 opt.foldmethod = "expr"
 opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
-
 opt.foldlevel = 99
 opt.foldlevelstart = 99
+
+vim.loader.enable()
+vim.opt.shadafile = ""
 
 -- Highlight on yank
 vim.api.nvim_create_autocmd("TextYankPost", {
