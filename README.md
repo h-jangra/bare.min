@@ -52,7 +52,7 @@ Optional language servers:
 | `bare.preview`    | Preview HTML, Markdown, and Typst files in browser.                       |
 | `bare.status`     | Minimal status line.                                                      |
 | `bare.surround`   | Easily add/change/delete surrounding characters.                          |
-| `bare.theme`      | Catppuccin-Mocha inspired minimal theme for Neovim.                       |
+| `bare.theme`      | Catppuccin-Frappé inspired minimal theme for Neovim.                      |
 
 ## Presentation Mode Keybindings
 
