@@ -18,7 +18,7 @@ vim.schedule(function()
   require("bare.lsp")
   require("bare.picker")
   require("bare.floaterm")
-  require("bare.imgPaste").setup()
+  require("bare.img").setup()
   require("bare.present").setup()
 end)
 
