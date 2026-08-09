@@ -108,6 +108,10 @@ local servers = {
     cmd = { "tailwindcss-language-server", "--stdio" },
     ft = { "html", "css", "javascript", "javascriptreact", "typescript", "typescriptreact", "vue", "svelte" },
   },
+  qmlls = {
+    cmd = { "qml-language-server" },
+    ft = { "qml" },
+  },
 }
 
 local ft_to_servers = {}

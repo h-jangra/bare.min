@@ -33,6 +33,7 @@ local icons = {
   jpg = entry("", "#a074c4"),
   jpeg = entry("", "#a074c4"),
   gif = entry("", "#a074c4"),
+  mp4 = entry("", "#a074c4"),
   svg = entry("󰜡", "#ffb13b"),
   gitignore = entry("", "#f54d27"),
   text = entry("", "#89e051"),
@@ -49,6 +50,7 @@ local icons = {
   scss = entry("", "#cd6799"),
   sass = entry("", "#cd6799"),
   log = entry("", "#51a0cf"),
+  qml = entry("", "#51a0cf"),
   default = entry("", "#a8b9cc"),
 }
 
