@@ -26,7 +26,8 @@ function _G.winbar_buffers()
   local parts = vim.iter(valid):map(function(b)
     local path = vim.api.nvim_buf_get_name(b)
     local name = path == "" and "Untitled" or vim.fs.basename(path)
-    local icon = icons.get_icon(vim.bo[b].filetype) or "󰈤"
+    local ft = vim.bo[b].filetype ~= "" and vim.bo[b].filetype or vim.filetype.match({ filename = name }) or name:match("%.([^.]+)$")
+    local icon = icons.get_icon(ft)
     local hl = (b == cur) and "WinBarActive" or "WinBarInactive"
     local mod = vim.bo[b].modified and " 󱇬" or ""
 

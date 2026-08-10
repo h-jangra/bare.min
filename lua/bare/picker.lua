@@ -1,8 +1,8 @@
-vim.opt.wildmenu = true
--- vim.opt.wildmode = 'noselect:lastused,full'
-vim.opt.wildmode = 'longest:full,full' -- auto select match
-vim.opt.completeopt = "menuone,noselect,popup,fuzzy"
-vim.opt.wildoptions = "fuzzy,pum,tagfile"
+vim.opt.wildmenu       = true
+vim.opt.wildmode       = 'noselect:lastused,full'
+-- vim.opt.wildmode       = 'longest:full,full' --  auto  select  match
+vim.opt.completeopt    = "menuone,noselect,popup,fuzzy"
+vim.opt.wildoptions    = "fuzzy,pum,tagfile"
 vim.opt.wildignorecase = true
 vim.opt.path:append('**')
 vim.opt.wildignore:append({

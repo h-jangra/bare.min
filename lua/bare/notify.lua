@@ -10,11 +10,11 @@ local views = { active = {}, history = {} }
 local ns_id = vim.api.nvim_create_namespace("bare_notify")
 
 local levels = {
-  [vim.log.levels.ERROR] = { icon = "󰅚 ", hl = "DiagnosticError" },
-  [vim.log.levels.WARN]  = { icon = "󰀦 ", hl = "DiagnosticWarn" },
-  [vim.log.levels.INFO]  = { icon = "󰋼 ", hl = "DiagnosticInfo" },
-  [vim.log.levels.DEBUG] = { icon = "󰌵 ", hl = "DiagnosticHint" },
-  [vim.log.levels.TRACE] = { icon = "󰌵 ", hl = "DiagnosticHint" },
+  [vim.log.levels.ERROR] = { icon = "󰅚  ", hl = "DiagnosticError" },
+  [vim.log.levels.WARN]  = { icon = "󰀦  ", hl = "DiagnosticWarn" },
+  [vim.log.levels.INFO]  = { icon = "󰋼  ", hl = "DiagnosticInfo" },
+  [vim.log.levels.DEBUG] = { icon = "󰌵  ", hl = "DiagnosticHint" },
+  [vim.log.levels.TRACE] = { icon = "󰌵  ", hl = "DiagnosticHint" },
 }
 
 local function get_level_info(level)

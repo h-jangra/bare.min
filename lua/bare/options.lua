@@ -1,46 +1,46 @@
-local opt = vim.opt
+local opt          = vim.opt
 
-opt.cmdheight = 0
-opt.number = true
+opt.cmdheight      = 0
+opt.laststatus     = 3
+opt.mouse          = "a"
+opt.number         = true
 opt.relativenumber = true
-opt.signcolumn = "yes:1"
-opt.scrolloff = 8
-opt.wrap = false
-opt.mouse = "a"
-opt.termguicolors = true
-opt.laststatus = 3
-opt.showtabline = 0
+opt.scrolloff      = 8
+opt.showtabline    = 0
+opt.signcolumn     = "yes:1"
+opt.termguicolors  = true
+opt.wrap           = false
 
 opt.shortmess:append("IcFsW")
-opt.completeopt = { "menu", "menuone", "noselect" }
-opt.winborder = "rounded"
+opt.completeopt    = { "menu", "menuone", "noselect" }
+opt.winborder      = "rounded"
 
-opt.expandtab = true
-opt.shiftwidth = 2
-opt.tabstop = 2
-opt.softtabstop = 2
-opt.smartindent = true
+opt.expandtab      = true
+opt.shiftwidth     = 2
+opt.smartindent    = true
+opt.softtabstop    = 2
+opt.tabstop        = 2
 
-opt.incsearch = true
+opt.incsearch      = true
 
-opt.undofile = true
-opt.undodir = vim.fs.joinpath(vim.fn.stdpath("data"), "undodir")
-opt.swapfile = false
-opt.backup = false
-opt.autoread = true
+opt.autoread       = true
+opt.backup         = false
+opt.swapfile       = false
+opt.undodir        = vim.fs.joinpath(vim.fn.stdpath("data"), "undodir")
+opt.undofile       = true
 
-opt.synmaxcol = 240
-opt.lazyredraw = true
-opt.updatetime = 200
-opt.timeoutlen = 300
-opt.ttimeoutlen = 10
-opt.mousescroll = "ver:5,hor:0"
-opt.winheight = 1
+opt.lazyredraw     = true
+opt.mousescroll    = "ver:5,hor:0"
+opt.synmaxcol      = 240
+opt.timeoutlen     = 300
+opt.ttimeoutlen    = 10
+opt.updatetime     = 200
+opt.winheight      = 1
 
-opt.foldmethod = "expr"
-opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
-opt.foldlevel = 99
+opt.foldexpr       = "v:lua.vim.treesitter.foldexpr()"
+opt.foldlevel      = 99
 opt.foldlevelstart = 99
+opt.foldmethod     = "expr"
 
 vim.loader.enable()
 vim.opt.shadafile = ""
@@ -68,5 +68,4 @@ local function enable_blur()
 end
 
 vim.api.nvim_create_autocmd("ColorScheme", { callback = enable_blur, })
-
 enable_blur()

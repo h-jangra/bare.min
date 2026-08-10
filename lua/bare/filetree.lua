@@ -47,7 +47,7 @@ local base_selected = nil
 
 local has_icons, icons = pcall(require, "bare.icons")
 local folder_icons = {
-  expanded = { icon = " " },
+  expanded = { icon = " " },
   collapsed = { icon = " " },
 }
 
@@ -288,7 +288,7 @@ local function render(update_git)
   local root_path = get_root()
   local root_name = vim.fn.fnamemodify(root_path, ":t")
   if root_name == "" then root_name = root_path end
-  local root_text = "  " .. root_name
+  local root_text = "  " .. root_name
 
   local ctx = build_tree(root_path)
   table.insert(ctx.lines, 1, root_text)

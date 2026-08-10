@@ -18,7 +18,7 @@ local organise_imports_client = {
 }
 
 local servers = {
-  lua_ls = {
+  luals = {
     cmd = { "lua-language-server" },
     ft = { "lua" },
     settings = {
@@ -35,7 +35,7 @@ local servers = {
     ft = { "python" },
     settings = { python = { analysis = { autoImportCompletions = true } } },
   },
-  ts_ls = {
+  tsls = {
     cmd = { "typescript-language-server", "--stdio" },
     ft = { "javascript", "javascriptreact", "typescript", "typescriptreact" },
     settings = {
@@ -74,8 +74,8 @@ local servers = {
   cssls = { cmd = { "vscode-css-language-server", "--stdio" }, ft = { "css", "scss", "less" } },
   jsonls = { cmd = { "vscode-json-language-server", "--stdio" }, ft = { "json" } },
   taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
-  bash_lsp = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
-  -- yaml_lsp = { cmd = { "yaml-language-server", "--stdio" }, ft = { "yaml", "yml" } },
+  bash_ls = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
+  -- yaml_ls = { cmd = { "yaml-language-server", "--stdio" }, ft = { "yaml", "yml" } },
   ansiblels = { cmd = { "ansible-language-server", "--stdio" }, ft = { "yaml", "yml" } },
   tinymist = {
     cmd = { "tinymist", "lsp" },

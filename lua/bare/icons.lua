@@ -1,104 +1,79 @@
 local M = {}
 
-local function entry(icon, color)
-  return { icon = icon, color = color }
-end
-
 local icons = {
-  lua = entry("", "#51a0cf"),
-  javascript = entry("", "#f7df1e"),
-  typescript = entry("", "#3178c6"),
-  python = entry("", "#3776ab"),
-  java = entry("", "#e11f21"),
-  c = entry("", "#a8b9cc"),
-  cpp = entry("", "#00599c"),
-  go = entry("", "#00add8"),
-  gomod = entry("󰕳", "#51a0cf"),
-  gosum = entry("󰕳", "#51a0cf"),
-  rust = entry("", "#ef4c23"),
-  html = entry("", "#e34c26"),
-  css = entry("", "#264de4"),
-  sh = entry("", "#89e051"),
-  bash = entry("󱆃", "#89e051"),
-  json = entry("", "#cbcb41"),
-  toml = entry("", "#9c4221"),
-  xml = entry("󰗀", "#e37933"),
-  yaml = entry("", "#cb171e"),
-  markdown = entry("", "#519aba"),
-  vim = entry("", "#019833"),
-  typst = entry("", "#239dad"),
-  dockerfile = entry("", "#2496ed"),
-  sql = entry("", "#e38c00"),
-  png = entry("󰈟", "#a074c4"),
-  jpg = entry("", "#a074c4"),
-  jpeg = entry("", "#a074c4"),
-  gif = entry("", "#a074c4"),
-  mp4 = entry("", "#a074c4"),
-  svg = entry("󰜡", "#ffb13b"),
-  gitignore = entry("", "#f54d27"),
-  text = entry("", "#89e051"),
-  csv = entry("", "#50ad47"),
-  lock = entry("", "#bbbbbb"),
-  pdf = entry("󰈦", "#b30b00"),
-  zip = entry("", "#eca517"),
-  tar = entry("", "#eca517"),
-  gzip = entry("", "#eca517"),
-  ruby = entry("", "#cc342d"),
-  vue = entry("", "#41b883"),
-  javascriptreact = entry("", "#61dafb"),
-  typescriptreact = entry("", "#61dafb"),
-  scss = entry("", "#cd6799"),
-  sass = entry("", "#cd6799"),
-  log = entry("", "#51a0cf"),
-  qml = entry("", "#51a0cf"),
-  default = entry("", "#a8b9cc"),
+  bash            = { "", "#89e051" },
+  c               = { "", "#a8b9cc" },
+  conf            = { "", "#51a0cf" },
+  cpp             = { "", "#00599c" },
+  css             = { "", "#264de4" },
+  csv             = { "", "#50ad47" },
+  default         = { "", "#a8b9cc" },
+  dockerfile      = { "", "#2496ed" },
+  gif             = { "󰵸", "#a074c4" },
+  gitignore       = { "", "#f54d27" },
+  go              = { "", "#00add8" },
+  gomod           = { "󰕳", "#51a0cf" },
+  gosum           = { "󰕳", "#51a0cf" },
+  gzip            = { "", "#eca517" },
+  html            = { "", "#e34c26" },
+  java            = { "", "#e11f21" },
+  javascript      = { "", "#f7df1e" },
+  javascriptreact = { "", "#61dafb" },
+  jpeg            = { "", "#a074c4" },
+  jpg             = { "󰈥", "#a074c4" },
+  json            = { "", "#cbcb41" },
+  lock            = { "", "#bbbbbb" },
+  log             = { "", "#51a0cf" },
+  lua             = { "󰢱", "#51a0cf" },
+  markdown        = { "󰂺", "#519aba" },
+  mp4             = { "", "#a074c4" },
+  pdf             = { "󰈦", "#b30b00" },
+  png             = { "󰸭", "#a074c4" },
+  python          = { "", "#3776ab" },
+  qml             = { "", "#51a0cf" },
+  ruby            = { "", "#cc342d" },
+  rust            = { "", "#ef4c23" },
+  sass            = { "", "#cd6799" },
+  scss            = { "", "#cd6799" },
+  sh              = { "󰯁", "#89e051" },
+  sql             = { "", "#e38c00" },
+  svg             = { "󰜡", "#ffb13b" },
+  tar             = { "", "#eca517" },
+  text            = { "", "#89e051" },
+  toml            = { "", "#9c4221" },
+  typescript      = { "", "#3178c6" },
+  typescriptreact = { "", "#61dafb" },
+  typst           = { "", "#239dad" },
+  vim             = { "", "#019833" },
+  vue             = { "", "#41b883" },
+  xml             = { "󰗀", "#e37933" },
+  yaml            = { "", "#cb171e" },
+  zip             = { "", "#eca517" },
 }
 
--- Precompute highlight
-for key, data in pairs(icons) do
-  data.hl = "FileIcon" .. key:gsub("^%l", string.upper):gsub("[^%w]", "")
-end
-
--- Aliases reference
-for alias, target in pairs({
-  js = "javascript", ts = "typescript", py = "python", md = "markdown", yml = "yaml",
-  typ = "typst", rs = "rust", rb = "ruby", jsx = "javascriptreact", react = "javascriptreact",
-  tsx = "typescriptreact", txt = "text", git = "gitignore", mod = "gomod", sum = "gosum", gz = "gzip",
-}) do
-  icons[alias] = icons[target]
-end
-
-M.icons = icons
-
-local hl_cache = {}
-local defined_hls = {}
+local cache = {}
+local defined = {}
 
 vim.api.nvim_create_autocmd("ColorScheme", {
-  callback = function() defined_hls = {} end,
+  callback = function() defined = {} end,
 })
 
 function M.get(ft)
-  local key = ft and ft:lower() or "default"
-  local data = icons[key]
-  local hl
+  local key = (ft and ft ~= "") and ft:lower() or "default"
+  local item = icons[key] or icons.default
+  local hl = cache[key]
 
-  if data then
-    hl = data.hl
-  else
-    data = icons.default
-    hl = hl_cache[key]
-    if not hl then
-      hl = "FileIcon" .. key:gsub("^%l", string.upper):gsub("[^%w]", "")
-      hl_cache[key] = hl
-    end
+  if not hl then
+    hl = "FileIcon" .. key:gsub("^%l", string.upper):gsub("[^%w]", "")
+    cache[key] = hl
   end
 
-  if not defined_hls[hl] and data.color then
-    vim.api.nvim_set_hl(0, hl, { fg = data.color, bold = true })
-    defined_hls[hl] = true
+  if not defined[hl] then
+    vim.api.nvim_set_hl(0, hl, { fg = item[2], bold = true })
+    defined[hl] = true
   end
 
-  return data.icon, hl
+  return item[1], hl
 end
 
 function M.get_icon(ft) return (M.get(ft)) end

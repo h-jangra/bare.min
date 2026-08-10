@@ -7,7 +7,7 @@ local MAX_LINES = 10000
 local SIGN_PRIORITY = 10
 
 local SIGNS = {
-  Add = { text = "▎", fg = "#98bb6c", hl = "BareGitAdd" },
+  Add    = { text = "▎", fg = "#98bb6c", hl = "BareGitAdd" },
   Change = { text = "▎", fg = "#7fb4ca", hl = "BareGitChange" },
   Delete = { text = "", fg = "#e46876", hl = "BareGitDelete" },
 }
@@ -65,7 +65,7 @@ local function parse_hunks(buf, base, file)
 
         for line in diff:gmatch("[^\r\n]+") do
           local old_start, old_count, new_start, new_count =
-            line:match("@@ %-(%d+),?(%d*) %+([0-9]+),?(%d*) @@")
+              line:match("@@ %-(%d+),?(%d*) %+([0-9]+),?(%d*) @@")
 
           if old_start then
             old_count = tonumber(old_count) or 1

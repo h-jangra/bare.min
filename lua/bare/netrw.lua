@@ -1,10 +1,10 @@
-vim.g.netrw_banner = 0
-vim.g.netrw_liststyle = 3
-vim.g.netrw_mousemaps = 0
-vim.g.netrw_keepdir = 0
+vim.g.netrw_banner     = 0
+vim.g.netrw_liststyle  = 3
+vim.g.netrw_mousemaps  = 0
+vim.g.netrw_keepdir    = 0
 
 local has_icons, icons = pcall(require, "bare.icons")
-local ns_id = vim.api.nvim_create_namespace("netrw_icons")
+local ns_id            = vim.api.nvim_create_namespace("netrw_icons")
 
 local function apply_icons(bufnr)
   if not vim.api.nvim_buf_is_valid(bufnr) then return end
