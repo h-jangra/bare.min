@@ -92,7 +92,11 @@ end
 
 local function set_cursor_to_path(path)
   local win = valid_win()
-  if not win then return end
+  if not win or not path then return end
+  if path == get_root() then
+    vim.api.nvim_win_set_cursor(win, { 1, 0 })
+    return true
+  end
   for i, item in ipairs(state.line_to_path or {}) do
     if item.path == path then
       vim.api.nvim_win_set_cursor(win, { i + 1, 0 })
@@ -282,8 +286,16 @@ local function render(update_git)
   if not buf then return end
 
   local current_path
-  local item = get_item()
-  if item then current_path = item.path end
+  local win = valid_win()
+  if win then
+    local row = vim.api.nvim_win_get_cursor(win)[1]
+    if row == 1 then
+      current_path = get_root()
+    else
+      local item = get_item()
+      if item then current_path = item.path end
+    end
+  end
 
   local root_path = get_root()
   local root_name = vim.fn.fnamemodify(root_path, ":t")
@@ -332,7 +344,27 @@ local function open_file()
   end
 end
 
+local function change_root(dir)
+  if dir and dir ~= "" then
+    local prev_root = get_root()
+    state.root = dir
+    render(true)
+    set_cursor_to_path(prev_root)
+  end
+end
+
 local function collapse()
+  local win = valid_win()
+  if not win then return end
+  local row = vim.api.nvim_win_get_cursor(win)[1]
+  if row == 1 then
+    local parent = vim.fn.fnamemodify(get_root(), ":h")
+    if parent ~= get_root() then
+      change_root(parent)
+    end
+    return
+  end
+
   local item = get_item()
   if not item then return end
   if item.is_dir and state.expanded[item.path] then
@@ -351,6 +383,7 @@ local function collapse()
       end
       curr = parent
     end
+    set_cursor_to_path(root)
   end
 end
 
@@ -359,7 +392,7 @@ local function move_cursor(dir, shift)
   if not win then return end
   local cursor = vim.api.nvim_win_get_cursor(win)
   local total = vim.api.nvim_buf_line_count(state.buf)
-  local target_row = math.max(2, math.min(total, cursor[1] + dir))
+  local target_row = math.max(1, math.min(total, cursor[1] + dir))
 
   if not shift then
     shift_selecting = false
@@ -379,8 +412,10 @@ local function move_cursor(dir, shift)
   state.selected = vim.deepcopy(base_selected)
 
   for r = math.min(anchor_row, target_row), math.max(anchor_row, target_row) do
-    local it = state.line_to_path[r - 1]
-    if it then state.selected[it.path] = true end
+    if r > 1 then
+      local it = state.line_to_path[r - 1]
+      if it then state.selected[it.path] = true end
+    end
   end
   render(false)
 end
@@ -413,17 +448,15 @@ local function toggle_file()
   render(false)
 end
 
-local function change_root(dir)
-  if dir then
-    state.root = dir
-    render(true)
-  end
-end
-
 local function copy_path(rel)
+  local win = valid_win()
+  local row = win and vim.api.nvim_win_get_cursor(win)[1] or 0
   local item = get_item()
-  if not item then return end
   local paths = selected_paths(item)
+  if #paths == 0 and row == 1 then
+    table.insert(paths, get_root())
+  end
+  if #paths == 0 then return end
   local formatted = {}
   for _, p in ipairs(paths) do table.insert(formatted, rel and vim.fn.fnamemodify(p, ":.") or p) end
   vim.fn.setreg("+", table.concat(formatted, "\n"))
