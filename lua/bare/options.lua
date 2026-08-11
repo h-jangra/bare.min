@@ -9,7 +9,7 @@ opt.scrolloff      = 8
 opt.showtabline    = 0
 opt.signcolumn     = "yes:1"
 opt.termguicolors  = true
-opt.wrap           = false
+opt.wrap           = true
 
 opt.shortmess:append("IcFsW")
 opt.completeopt    = { "menu", "menuone", "noselect" }
