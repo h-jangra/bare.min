@@ -63,21 +63,29 @@ map("n", "<leader>fr", function()
 end, { desc = "Find & Replace" })
 
 -- Copy diagnostics to clipboard
-map("n", "<leader>cd", function()
-  local diags = vim.diagnostic.get(0, { lnum = vim.api.nvim_win_get_cursor(0)[1] - 1 })
-  if #diags == 0 then
-    vim.notify("No diagnostics on this line", vim.log.levels.WARN)
-    return
-  end
-  vim.fn.setreg("+", vim.iter(diags):map(function(d) return d.message end):join("\n"))
-  vim.notify("Diagnostics copied to clipboard")
-end, { desc = "Copy Line Diagnostics" })
+map("n", "<leader>cd", function() require("bare.diagnostics").copy_line() end, { desc = "Copy Line Diagnostics" })
 
 -- LSP
 map("n", "<leader>lf", function()
   vim.lsp.buf.format({ async = true, timeout_ms = 2000 })
 end, { desc = "LSP Format" })
 map("n", "<leader>li", "gg=G``", { desc = "Indent Entire File" })
+map("n", "<leader>ds", function() require("bare.lsp").document_symbols() end, { desc = "Document Symbols" })
+map("n", "<leader>ws", function() require("bare.lsp").workspace_symbols() end, { desc = "Workspace Symbols" })
+
+-- Diagnostics & Quickfix Panel
+map("n", "gl", function() require("bare.diagnostics").open_float() end, { desc = "Line Diagnostics" })
+map("n", "<leader>xx", function() require("bare.diagnostics").picker_workspace() end, { desc = "Workspace Diagnostics Picker" })
+map("n", "<leader>xX", function() require("bare.diagnostics").picker_buffer() end, { desc = "Buffer Diagnostics Picker" })
+map("n", "<leader>xq", function() require("bare.diagnostics").toggle_qf() end, { desc = "Toggle Quickfix Window" })
+map("n", "<leader>xl", function() require("bare.diagnostics").toggle_loc() end, { desc = "Toggle Location List" })
+map("n", "<leader>xt", function() require("bare.diagnostics").toggle() end, { desc = "Toggle Diagnostics" })
+map("n", "]d", function() require("bare.diagnostics").next() end, { desc = "Next Diagnostic" })
+map("n", "[d", function() require("bare.diagnostics").prev() end, { desc = "Prev Diagnostic" })
+map("n", "]e", function() require("bare.diagnostics").next_error() end, { desc = "Next Error" })
+map("n", "[e", function() require("bare.diagnostics").prev_error() end, { desc = "Prev Error" })
+map("n", "]w", function() require("bare.diagnostics").next_warn() end, { desc = "Next Warning" })
+map("n", "[w", function() require("bare.diagnostics").prev_warn() end, { desc = "Prev Warning" })
 
 -- Git (navigation, preview, revert)
 map("n", "]h", function() require("bare.git").next_hunk() end, { desc = "Next Git Hunk" })

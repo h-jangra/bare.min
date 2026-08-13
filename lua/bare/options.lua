@@ -52,8 +52,6 @@ vim.api.nvim_create_autocmd("TextYankPost", {
   end,
 })
 
-vim.diagnostic.config({ virtual_text = { current_line = true }, })
-
 local function enable_blur()
   for _, g in ipairs({
     "Normal", "NormalNC", "SignColumn", "FoldColumn", "EndOfBuffer",
