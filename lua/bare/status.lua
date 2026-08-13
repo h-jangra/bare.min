@@ -1,16 +1,8 @@
 local M = {}
 
-local api = vim.api
-local fn = vim.fn
-
-local bg = "#292c3c"
+local api, fn = vim.api, vim.fn
+local bg = "#232634"
 local fg = "#c6d0f5"
-
-api.nvim_set_hl(0, "StlBubble", { fg = fg, bg = bg })
-api.nvim_set_hl(0, "StlBubbleCap", { fg = bg, bg = "NONE" })
-api.nvim_set_hl(0, "StlAccent", { fg = "#81c8be", bg = bg })
-api.nvim_set_hl(0, "StlDiagErr", { fg = "#e78284", bg = bg, bold = true })
-api.nvim_set_hl(0, "StlDiagWarn", { fg = "#e5c890", bg = bg })
 
 local mode_colors = {
   N = "#8caaee",
@@ -21,10 +13,20 @@ local mode_colors = {
   T = "#ea999c",
 }
 
-for letter, color in pairs(mode_colors) do
-  api.nvim_set_hl(0, "StlMode" .. letter, { fg = bg, bg = color, bold = true })
-  api.nvim_set_hl(0, "StlCap" .. letter, { fg = color, bg = "NONE" })
+local function set_hl()
+  api.nvim_set_hl(0, "StlBubble", { fg = fg, bg = bg })
+  api.nvim_set_hl(0, "StlBubbleCap", { fg = bg, bg = "NONE" })
+  api.nvim_set_hl(0, "StlAccent", { fg = "#81c8be", bg = bg })
+  api.nvim_set_hl(0, "StlDiagErr", { fg = "#e78284", bg = bg, bold = true })
+  api.nvim_set_hl(0, "StlDiagWarn", { fg = "#e5c890", bg = bg })
+
+  for letter, color in pairs(mode_colors) do
+    api.nvim_set_hl(0, "StlMode" .. letter, { fg = bg, bg = color, bold = true })
+    api.nvim_set_hl(0, "StlCap" .. letter, { fg = color, bg = "NONE" })
+  end
 end
+
+set_hl()
 
 local modes = {
   n       = "N",
@@ -70,6 +72,20 @@ local function get_git_branch(bufnr)
   return " " .. vim.trim(branch)
 end
 
+local function get_filesize(bufnr)
+  local file = api.nvim_buf_get_name(bufnr or 0)
+  local size = file ~= "" and fn.getfsize(file) or -1
+  if size <= 0 then return "" end
+  local units = { "B", "K", "M", "G" }
+  local i = 1
+  while size >= 1024 and i < #units do
+    size = size / 1024
+    i = i + 1
+  end
+  if i == 1 then return size .. "B" end
+  return (string.format("%.1f%s", size, units[i]):gsub("%.0(%a)", "%1"))
+end
+
 local function get_lsp_name(bufnr)
   local clients = vim.lsp.get_clients({ bufnr = bufnr })
   if #clients == 0 then return "" end
@@ -96,14 +112,9 @@ local function get_diag_status()
 end
 
 local function get_search_count()
-  if vim.v.hlsearch ~= 1 or fn.getreg("/") == "" then
-    return ""
-  end
+  if vim.v.hlsearch ~= 1 or fn.getreg("/") == "" then return "" end
   local ok, res = pcall(fn.searchcount, { maxcount = 999, timeout = 50 })
-  if ok and res and res.total and res.total > 0 then
-    return string.format("%d/%d", res.current, res.total)
-  end
-  return ""
+  return (ok and res and res.total and res.total > 0) and string.format("%d/%d", res.current, res.total) or ""
 end
 
 local function get_macro()
@@ -114,81 +125,52 @@ end
 function M.statusline()
   local letter = modes[api.nvim_get_mode().mode] or "N"
   local bufnr = api.nvim_get_current_buf()
-
-  if not cache[bufnr] then
-    update_cache(bufnr)
-  end
+  if not cache[bufnr] then update_cache(bufnr) end
 
   local file = fn.expand("%:~:.")
-  if file == "" then
-    file = "Untitled"
-  elseif vim.bo.buftype == "terminal" then
-    file = "Terminal"
-  end
+  file = file == "" and "Untitled" or (vim.bo.buftype == "terminal" and "Terminal" or file)
+  local file_hl = vim.bo.modified and "%#StlAccent# " or "%#StlBubble# "
 
-  local file_hl = vim.bo.modified and " %#StlAccent#" or " %#StlBubble#"
   local git = cache[bufnr] or ""
-
   local hl = "StlMode" .. letter
   local cap = "StlCap" .. letter
 
-  local left = "%#" .. cap .. "#%#" .. hl .. "#" .. letter .. " %#StlBubble#" .. file_hl .. file
-  if git ~= "" then
-    left = left .. " %#StlAccent#" .. git .. "%#StlBubble#"
-  end
+  local left = "%#" .. cap .. "#%#" .. hl .. "#" .. letter .. " " .. file_hl .. file
+  if git ~= "" then left = left .. " %#StlAccent#" .. git end
   left = left .. get_diag_status() .. "%#StlBubbleCap#"
 
-  local macro = get_macro()
-  local search = get_search_count()
-  local lsp = get_lsp_name(bufnr)
-
-  local right_content = ""
-  if macro ~= "" then
-    right_content = "%#StlDiagWarn#" .. macro
-  end
-  if search ~= "" then
-    right_content = right_content .. (right_content ~= "" and " %#StlBubble#┊ " or "") .. "%#StlBubble#" .. search
-  end
-  if lsp ~= "" then
-    right_content = right_content .. (right_content ~= "" and " %#StlBubble#┊ " or "") .. "%#StlAccent#" .. lsp
-  end
+  local macro, search, lsp, size = get_macro(), get_search_count(), get_lsp_name(bufnr), get_filesize(bufnr)
+  local right_parts = {}
+  if macro ~= "" then table.insert(right_parts, "%#StlDiagWarn#" .. macro) end
+  if search ~= "" then table.insert(right_parts, "%#StlBubble#" .. search) end
+  if lsp ~= "" then table.insert(right_parts, "%#StlAccent#" .. lsp) end
+  if size ~= "" then table.insert(right_parts, "%#StlBubble#" .. size) end
 
   local right = ""
-  if right_content ~= "" then
-    right = "%#StlBubbleCap#%#StlBubble#" .. right_content .. " "
+  if #right_parts > 0 then
+    right = "%#StlBubbleCap#" .. table.concat(right_parts, " ") .. " %#" .. hl .. "# %L%#" .. cap .. "#"
+  else
+    right = "%#" .. cap .. "#%#" .. hl .. "#%L%#" .. cap .. "#"
   end
-  local line = (right_content ~= "" and " %L" or "%L")
-  right = right ..
-  (right_content ~= "" and "%#" .. hl .. "#" or "%#" .. cap .. "#%#" .. hl .. "#") .. line .. "%#" .. cap .. "#"
 
   return left .. "%=" .. right
 end
 
 local augroup = api.nvim_create_augroup("StlCache", { clear = true })
-
-local function redraw()
-  vim.cmd.redrawstatus()
-end
+local function redraw() vim.cmd.redrawstatus() end
 
 api.nvim_create_autocmd({ "BufEnter", "DirChanged" },
   { group = augroup, callback = function(args) update_cache(args.buf) end })
-
 api.nvim_create_autocmd({ "LspAttach", "LspDetach", "RecordingEnter", "RecordingLeave" },
-  {
-    group = augroup,
-    callback = redraw,
-  })
-
+  { group = augroup, callback = redraw })
 api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
   group = augroup,
   callback = function()
-    if vim.v.hlsearch == 1 then
-      redraw()
-    end
+    if vim.v.hlsearch == 1 then redraw() end
   end,
 })
-
 api.nvim_create_autocmd("BufWipeout", { group = augroup, callback = function(args) cache[args.buf] = nil end })
+api.nvim_create_autocmd("ColorScheme", { group = augroup, callback = set_hl })
 
 vim.o.statusline = "%!v:lua.require('bare.status').statusline()"
 

@@ -8,6 +8,7 @@ vim.schedule(function()
   require("bare.buffer")
   require("bare.status")
   require("bare.git").setup()
+  require("bare.files").setup()
   require("bare.pairs").setup()
   require("bare.preview").setup()
   require("bare.cmp")
@@ -21,7 +22,16 @@ vim.schedule(function()
   require("bare.img").setup()
   require("bare.present").setup()
 end)
+local files = require("bare.files")
 
-vim.keymap.set('n', '<leader>e', require("bare.filetree").toggle, { desc = "Open file tree" })
+files.setup({
+  width = 32,
+  show_hidden = false,
+})
+
+vim.keymap.set("n", "<leader>e", function()
+  files.toggle()
+end, { desc = "Toggle file explorer" })
+-- vim.keymap.set('n', '<leader>e', require("bare.filetree").toggle, { desc = "Open file tree" })
 vim.keymap.set('n', '<leader><leader>', require("bare.fzf").files, { desc = "Open fzf files" })
 vim.keymap.set('n', '<leader>fg', require("bare.fzf").grep, { desc = "Open fzf grep" })

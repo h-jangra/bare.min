@@ -24,8 +24,10 @@ require("bare.fzf")
 |-------------------|---------------------------------------------------------------------------|
 | `bare.buffer`     | Enhanced buffer management.                                               |
 | `bare.cmp`        | Native completion using LSP setup.                                        |
+| `bare.files`      | Minimal Oil-like file editing.                                            |
 | `bare.filetree`   | File explorer integration.                                                |
 | `bare.fzf`        | Fuzzy file finder using FZF.                                              |
+| `bare.git`        | Lightweight Git indicators + hunk navigation + preview + revert.          |
 | `bare.img`        | Paste/Delete images from clipboard into Markdown/Typst files.             |
 | `bare.lsp`        | Native LSP setup.                                                         |
 | `bare.marks`      | Manage marks in buffers.                                                  |
@@ -37,6 +39,14 @@ require("bare.fzf")
 | `bare.status`     | Minimal status line.                                                      |
 | `bare.surround`   | Easily add/change/delete surrounding characters.                          |
 | `bare.theme`      | Catppuccin-Frappé inspired minimal theme for Neovim.                      |
+
+## Git Keybindings
+
+- `]h`: Jump to next hunk
+- `[h`: Jump to previous hunk
+- `<leader>gp`: Preview hunk diff in floating window
+- `<leader>gr`: Revert hunk under cursor
+- `<leader>gR`: Revert whole file (with confirmation)
 
 ## Presentation Mode Keybindings
 

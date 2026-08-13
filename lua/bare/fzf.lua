@@ -18,8 +18,8 @@ local function run(command, on_select)
         local ok, lines = pcall(vim.fn.readfile, outfile)
         vim.fn.delete(outfile)
 
-        if ok and lines[1] then
-          on_select(lines[1])
+        if ok and lines[1] and lines[1] ~= "" then
+          on_select((lines[1]:gsub("[\r\n]+$", "")))
         end
       end)
     end,

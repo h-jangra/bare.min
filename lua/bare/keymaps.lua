@@ -79,6 +79,13 @@ map("n", "<leader>lf", function()
 end, { desc = "LSP Format" })
 map("n", "<leader>li", "gg=G``", { desc = "Indent Entire File" })
 
+-- Git (navigation, preview, revert)
+map("n", "]h", function() require("bare.git").next_hunk() end, { desc = "Next Git Hunk" })
+map("n", "[h", function() require("bare.git").prev_hunk() end, { desc = "Prev Git Hunk" })
+map("n", "<leader>gp", function() require("bare.git").preview_hunk() end, { desc = "Git Preview Hunk" })
+map("n", "<leader>gr", function() require("bare.git").revert_hunk() end, { desc = "Git Revert Hunk" })
+map("n", "<leader>gR", function() require("bare.git").revert_file() end, { desc = "Git Revert File" })
+
 -- Notifications
 map("n", "<leader>n", function()
   require("bare.notify").show_history()
