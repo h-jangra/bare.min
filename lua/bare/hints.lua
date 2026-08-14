@@ -57,18 +57,10 @@ end
 local function next_key(str, from)
   local rest = str:sub(from + 1)
   if rest == "" then return "" end
-  local b = rest:byte(1)
-  if b == 128 and #rest >= 3 then
+  if rest:byte(1) == 128 and #rest >= 3 then
     return rest:sub(1, 3)
-  elseif b < 128 then
-    return rest:sub(1, 1)
-  elseif b < 224 then
-    return rest:sub(1, 2)
-  elseif b < 240 then
-    return rest:sub(1, 3)
-  else
-    return rest:sub(1, 4)
   end
+  return rest:match("^[%z\1-\127\194-\244][\128-\191]*") or rest:sub(1, 1)
 end
 
 local function key_name(k)

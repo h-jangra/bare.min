@@ -49,19 +49,3 @@ vim.api.nvim_create_autocmd("TextYankPost", {
     vim.hl.on_yank { higroup = "Visual", timeout = 150 }
   end,
 })
-
-local function enable_blur()
-  for _, g in ipairs({
-    "Normal", "NormalNC", "SignColumn", "FoldColumn", "EndOfBuffer",
-    "LineNr", "CursorLineNr", "StatusLine", "StatusLineNC",
-    "TabLine", "TabLineFill", "NormalFloat", "FloatBorder",
-    "Pmenu", "PmenuSbar", "PmenuBorder", "PmenuShadow",
-  }) do
-    local hl = vim.api.nvim_get_hl(0, { name = g })
-    hl.bg = "NONE"
-    vim.api.nvim_set_hl(0, g, hl)
-  end
-end
-
-vim.api.nvim_create_autocmd("ColorScheme", { callback = enable_blur, })
-enable_blur()

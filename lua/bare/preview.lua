@@ -6,13 +6,6 @@ local state = {
   md_port = 6419,
 }
 
-local function open(url)
-  local opener = vim.fn.has("mac") == 1 and "open"
-      or vim.fn.has("unix") == 1 and "xdg-open" or "start"
-
-  vim.system({ opener, url })
-end
-
 local function stop(name)
   local proc = state.jobs[name]
   if not proc then return end
@@ -34,7 +27,7 @@ local function start_html(port)
     cwd = vim.fs.dirname(file),
   })
 
-  open("http://localhost:" .. state.html_port .. "/" .. vim.fs.basename(file))
+  vim.ui.open("http://localhost:" .. state.html_port .. "/" .. vim.fs.basename(file))
 end
 
 local function start_markdown(port)
@@ -48,7 +41,7 @@ local function start_markdown(port)
   state.jobs.markdown = vim.system({ "grip", file, tostring(state.md_port) })
 
   vim.defer_fn(function()
-    open("http://localhost:" .. state.md_port)
+    vim.ui.open("http://localhost:" .. state.md_port)
   end, 700)
 end
 

@@ -55,15 +55,11 @@ vim.api.nvim_create_autocmd("FileType", {
       end
     end, { buffer = event.buf, silent = true })
 
-    vim.schedule(function() apply_icons(event.buf) end)
-  end,
-})
+    vim.api.nvim_create_autocmd({ "BufEnter", "TextChanged" }, {
+      buffer = event.buf,
+      callback = function() apply_icons(event.buf) end,
+    })
 
-vim.api.nvim_create_autocmd({ "BufEnter", "TextChanged" }, {
-  pattern = "*",
-  callback = function(event)
-    if vim.bo[event.buf].filetype == "netrw" then
-      apply_icons(event.buf)
-    end
+    vim.schedule(function() apply_icons(event.buf) end)
   end,
 })

@@ -59,38 +59,35 @@ local function render_notifs(notifs, is_history)
 end
 
 local function get_config(view, lines_cnt, max_w, is_history)
+  local width, height, row, col, border, enter, focusable, title, zindex
   if is_history then
-    local width = math.max(32, math.min(max_w + 4, math.floor(vim.o.columns * 0.8)))
-    local height = math.max(1, math.min(lines_cnt, math.floor(vim.o.lines * 0.6)))
-    return {
-      relative = "editor",
-      width = width,
-      height = height,
-      row = math.floor((vim.o.lines - height) / 2),
-      col = math.floor((vim.o.columns - width) / 2),
-      style = "minimal",
-      border = "rounded",
-      title = " Notifications History (" .. #history .. ") ",
-      title_pos = "center",
-      enter = true,
-      buf = view.buf,
-      win = view.win,
-    }
+    width = math.max(32, math.min(max_w + 4, math.floor(vim.o.columns * 0.8)))
+    height = math.max(1, math.min(lines_cnt, math.floor(vim.o.lines * 0.6)))
+    row = math.floor((vim.o.lines - height) / 2)
+    col = math.floor((vim.o.columns - width) / 2)
+    border, enter, title = "rounded", true, " Notifications History (" .. #history .. ") "
+  else
+    width = math.max(1, math.min(max_w, math.floor(vim.o.columns * 0.6)))
+    height = lines_cnt
+    local margin = (vim.o.cmdheight or 1) + (vim.o.laststatus > 0 and 1 or 0)
+    row = math.max(0, vim.o.lines - lines_cnt - margin)
+    col = math.max(0, vim.o.columns - width)
+    border, enter, focusable, zindex = "none", false, false, 250
   end
 
-  local width = math.max(1, math.min(max_w, math.floor(vim.o.columns * 0.6)))
-  local margin = (vim.o.cmdheight or 1) + (vim.o.laststatus > 0 and 1 or 0)
   return {
     relative = "editor",
-    width = width,
-    height = lines_cnt,
-    row = math.max(0, vim.o.lines - lines_cnt - margin),
-    col = math.max(0, vim.o.columns - width),
     style = "minimal",
-    border = "none",
-    focusable = false,
-    zindex = 250,
-    enter = false,
+    width = width,
+    height = height,
+    row = row,
+    col = col,
+    border = border,
+    enter = enter,
+    focusable = focusable,
+    zindex = zindex,
+    title = title,
+    title_pos = title and "center" or nil,
     buf = view.buf,
     win = view.win,
   }
@@ -162,9 +159,7 @@ function M.clear()
 end
 
 function M.clear_history()
-  for i = #history, 1, -1 do
-    history[i] = nil
-  end
+  table.clear(history)
   close_view(views.history)
 end
 
@@ -220,7 +215,6 @@ local function setup_commands()
 
   vim.api.nvim_create_user_command("NotifyHistory", M.show_history,
     { desc = "Show notification history floating window" })
-  vim.keymap.set("n", "<leader>n", M.show_history, { desc = "Show Notification History" })
 end
 
 function M.setup()

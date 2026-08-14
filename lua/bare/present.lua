@@ -21,12 +21,13 @@ end
 
 local function render()
   vim.api.nvim_buf_clear_namespace(0, ns, 0, -1)
+  local all_lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
 
   for i = state.block + 1, #state.blocks do
     local block = state.blocks[i]
 
     for line = block[1], block[2] do
-      local text = vim.api.nvim_buf_get_lines(0, line - 1, line, false)[1]
+      local text = all_lines[line] or ""
 
       if text ~= "" then
         vim.api.nvim_buf_set_extmark(0, ns, line - 1, 0, {

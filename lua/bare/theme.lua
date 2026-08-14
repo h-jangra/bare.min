@@ -38,7 +38,7 @@ function M.setup()
 
   local highlights = {
     -- Basic UI
-    Normal = { fg = colors.text, bg = colors.base },
+    Normal = { fg = colors.text, bg = colors.none },
     NormalNC = { link = "Normal" },
     Comment = { fg = colors.surface2, italic = true },
 
@@ -68,31 +68,31 @@ function M.setup()
     Debug = { fg = colors.red },
 
     -- UI elements
-    LineNr = { fg = colors.overlay0 },
-    CursorLineNr = { fg = colors.peach, bold = true },
+    LineNr = { fg = colors.overlay0, bg = colors.none },
+    CursorLineNr = { fg = colors.peach, bold = true, bg = colors.none },
     CursorLine = { bg = colors.surface0 },
     CursorColumn = { bg = colors.surface0 },
     ColorColumn = { bg = colors.crust },
     Conceal = { fg = colors.surface1 },
     Cursor = { fg = colors.base, bg = colors.text },
     Directory = { fg = colors.blue },
-    EndOfBuffer = { fg = colors.base },
+    EndOfBuffer = { fg = colors.base, bg = colors.none },
     ErrorMsg = { fg = colors.red },
     Folded = { fg = colors.blue, bg = colors.overlay0 },
-    FoldColumn = { bg = colors.base, fg = colors.surface2 },
-    SignColumn = { bg = colors.base, fg = colors.overlay0 },
+    FoldColumn = { bg = colors.none, fg = colors.surface2 },
+    SignColumn = { bg = colors.none, fg = colors.overlay0 },
     MatchParen = { fg = colors.peach, bold = true },
     NonText = { fg = colors.crust },
-    NormalFloat = { fg = colors.text, bg = colors.base },
-    FloatBorder = { fg = colors.blue, bg = colors.base },
+    NormalFloat = { fg = colors.text, bg = colors.none },
+    FloatBorder = { fg = colors.blue, bg = colors.none },
     NotifyFloat = { fg = colors.text, bg = colors.mantle },
     NotifyFloatBorder = { fg = colors.blue, bg = colors.mantle },
 
     -- Status line and tabs
-    StatusLine = { fg = colors.text, bg = colors.mantle },
-    StatusLineNC = { fg = colors.surface2, bg = colors.mantle },
-    TabLine = { bg = colors.mantle, fg = colors.overlay0 },
-    TabLineFill = { bg = colors.crust },
+    StatusLine = { fg = colors.text, bg = colors.none },
+    StatusLineNC = { fg = colors.surface2, bg = colors.none },
+    TabLine = { bg = colors.none, fg = colors.overlay0 },
+    TabLineFill = { bg = colors.none },
     TabLineSel = { fg = colors.crust, bg = colors.blue },
 
     -- Visual mode & Search
@@ -102,14 +102,14 @@ function M.setup()
     CurSearch = { link = "IncSearch" },
 
     -- Pmenu
-    Pmenu = { bg = colors.base, fg = colors.text },
+    Pmenu = { bg = colors.none, fg = colors.text },
     PmenuSel = { bg = colors.surface0, fg = colors.blue, bold = true, sp = colors.blue },
-    PmenuSbar = { bg = colors.base },
+    PmenuSbar = { bg = colors.none },
     PmenuThumb = { bg = colors.blue },
     PmenuMatch = { fg = colors.peach, bold = true, sp = colors.peach },
     PmenuMatchSel = { link = "PmenuMatch" },
-    PmenuBorder = { fg = colors.teal, bg = colors.base },
-    PmenuShadow = { fg = colors.teal, bg = colors.base },
+    PmenuBorder = { fg = colors.teal, bg = colors.none },
+    PmenuShadow = { fg = colors.teal, bg = colors.none },
 
     -- Diagnostics
     DiagnosticError = { fg = colors.red },

@@ -1,4 +1,5 @@
 local M = {}
+local ui = require("bare.ui")
 
 local api = vim.api
 local DEBOUNCE_MS, MAX_LINES, SIGN_PRIORITY = 120, 10000, 10
@@ -15,13 +16,21 @@ M.SIGNS = {
 local ns = api.nvim_create_namespace("bare_git")
 local bufs = {}
 
+local function resolve_buf(buf)
+  return (buf and buf ~= 0) and buf or api.nvim_get_current_buf()
+end
+
+local function hunk_line(h)
+  return (h.new_count == 0) and math.max(1, h.new_start) or h.new_start
+end
+
 local function get_buf(buf)
   bufs[buf] = bufs[buf] or { ver = 0, hunks = {} }
   return bufs[buf]
 end
 
 local function get_info(buf)
-  buf = (buf and buf ~= 0) and buf or api.nvim_get_current_buf()
+  buf = resolve_buf(buf)
   if not api.nvim_buf_is_valid(buf) then return nil end
   local file = api.nvim_buf_get_name(buf)
   if file == "" or vim.bo[buf].buftype ~= "" then return nil end
@@ -42,16 +51,9 @@ end
 
 M.set_hl()
 
-function M.status(dir)
-  dir = dir and vim.fs.normalize(dir) or vim.fn.getcwd()
-  local root = vim.fs.root(dir, ".git")
-  if not root then return {} end
-
-  local res = vim.system({ "git", "-C", root, "status", "--porcelain=v1", "-uall" }, { text = true }):wait()
-  if res.code ~= 0 or not res.stdout or res.stdout == "" then return {} end
-
+local function parse_status_output(stdout, root)
   local map = {}
-  for line in res.stdout:gmatch("[^\r\n]+") do
+  for line in stdout:gmatch("[^\r\n]+") do
     local x, y = line:sub(1, 1), line:sub(2, 2)
     local p = line:sub(4):match(" %-> (.+)$") or line:sub(4)
     local full = vim.fs.normalize(vim.fs.joinpath(root, (p:gsub('^"', ''):gsub('"$', ''))))
@@ -80,6 +82,35 @@ function M.status(dir)
     end
   end
   return map
+end
+
+function M.status(dir)
+  dir = dir and vim.fs.normalize(dir) or vim.fn.getcwd()
+  local root = vim.fs.root(dir, ".git")
+  if not root then return {} end
+
+  local res = vim.system({ "git", "-C", root, "status", "--porcelain=v1", "-uall" }, { text = true }):wait()
+  if res.code ~= 0 or not res.stdout or res.stdout == "" then return {} end
+  return parse_status_output(res.stdout, root)
+end
+
+function M.status_async(dir, cb)
+  dir = dir and vim.fs.normalize(dir) or vim.fn.getcwd()
+  local root = vim.fs.root(dir, ".git")
+  if not root then
+    if cb then cb({}) end
+    return
+  end
+
+  vim.system({ "git", "-C", root, "status", "--porcelain=v1", "-uall" }, { text = true }, function(res)
+    vim.schedule(function()
+      if res.code ~= 0 or not res.stdout or res.stdout == "" then
+        if cb then cb({}) end
+        return
+      end
+      if cb then cb(parse_status_output(res.stdout, root)) end
+    end)
+  end)
 end
 
 M.get_status = M.status
@@ -144,25 +175,23 @@ local function find_hunk(buf, lnum)
   local b = bufs[buf]
   if not b or not b.hunks or #b.hunks == 0 then return nil end
   lnum = lnum or api.nvim_win_get_cursor(0)[1]
+  local adjacent = nil
   for _, h in ipairs(b.hunks) do
-    if h.new_count == 0 then
-      if lnum == h.new_start or lnum == h.new_start + 1 or (h.new_start == 0 and lnum == 1) then
-        return h
-      end
-    elseif lnum >= h.new_start and lnum <= (h.new_start + h.new_count - 1) then
+    local s = hunk_line(h)
+    local e = (h.new_count == 0) and s or (s + h.new_count - 1)
+    if (h.new_count == 0 and (lnum == h.new_start or lnum == h.new_start + 1 or (h.new_start == 0 and lnum == 1)))
+        or (h.new_count > 0 and lnum >= s and lnum <= e) then
       return h
     end
+    if not adjacent and (math.abs(lnum - s) <= 1 or math.abs(lnum - e) <= 1) then
+      adjacent = h
+    end
   end
-  for _, h in ipairs(b.hunks) do
-    local s = (h.new_count == 0) and math.max(1, h.new_start) or h.new_start
-    local e = (h.new_count == 0) and math.max(1, h.new_start) or (h.new_start + h.new_count - 1)
-    if math.abs(lnum - s) <= 1 or math.abs(lnum - e) <= 1 then return h end
-  end
-  return nil
+  return adjacent
 end
 
 function M.update(buf, cb)
-  buf = (buf and buf ~= 0) and buf or api.nvim_get_current_buf()
+  buf = resolve_buf(buf)
   if not api.nvim_buf_is_valid(buf) or not api.nvim_buf_is_loaded(buf) then return end
 
   local info = get_info(buf)
@@ -189,7 +218,7 @@ function M.update(buf, cb)
 end
 
 function M.revert_hunk(buf, lnum)
-  buf = (buf and buf ~= 0) and buf or api.nvim_get_current_buf()
+  buf = resolve_buf(buf)
   lnum = lnum or api.nvim_win_get_cursor(0)[1]
   local hunk = find_hunk(buf, lnum)
   if not hunk then
@@ -215,7 +244,7 @@ function M.revert_hunk(buf, lnum)
 end
 
 function M.preview_hunk(buf, lnum)
-  buf = (buf and buf ~= 0) and buf or api.nvim_get_current_buf()
+  buf = resolve_buf(buf)
   lnum = lnum or api.nvim_win_get_cursor(0)[1]
   local hunk = find_hunk(buf, lnum)
   if not hunk or not hunk.lines or #hunk.lines == 0 then
@@ -226,24 +255,21 @@ function M.preview_hunk(buf, lnum)
   local lines = vim.list_extend({ hunk.header }, hunk.lines)
   local width = 32
   for _, l in ipairs(lines) do width = math.max(width, #l + 4) end
-  width = math.min(width, math.floor(vim.o.columns * 0.8))
-  local height = math.min(#lines, 20)
 
-  local pbuf = api.nvim_create_buf(false, true)
-  api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
-  vim.bo[pbuf].filetype, vim.bo[pbuf].buftype = "diff", "nofile"
-
-  local win = api.nvim_open_win(pbuf, false, {
+  local pbuf, win = ui.float({
+    lines = lines,
     relative = "cursor",
     row = 1,
     col = 0,
-    width = width,
-    height = height,
-    style = "minimal",
-    border = "rounded",
+    width = math.min(width, math.floor(vim.o.columns * 0.8)),
+    height = math.min(#lines, 20),
     title = " Hunk Preview ",
     title_pos = "center",
+    enter = false,
   })
+
+  vim.bo[pbuf].filetype, vim.bo[pbuf].buftype = "diff", "nofile"
+  vim.api.nvim_buf_set_lines(pbuf, 0, -1, false, lines)
 
   local augroup = api.nvim_create_augroup("BareGitPreview_" .. win, { clear = true })
   api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "BufLeave" }, {
@@ -256,38 +282,34 @@ function M.preview_hunk(buf, lnum)
 end
 
 function M.next_hunk(buf)
-  buf = (buf and buf ~= 0) and buf or api.nvim_get_current_buf()
+  buf = resolve_buf(buf)
   local b = bufs[buf]
   if not b or not b.hunks or #b.hunks == 0 then return end
   local cur = api.nvim_win_get_cursor(0)[1]
   for _, h in ipairs(b.hunks) do
-    local target = (h.new_count == 0) and math.max(1, h.new_start) or h.new_start
+    local target = hunk_line(h)
     if target > cur then
       api.nvim_win_set_cursor(0, { target, 0 })
       return
     end
   end
-  local first = b.hunks[1]
-  local target = (first.new_count == 0) and math.max(1, first.new_start) or first.new_start
-  api.nvim_win_set_cursor(0, { target, 0 })
+  api.nvim_win_set_cursor(0, { hunk_line(b.hunks[1]), 0 })
 end
 
 function M.prev_hunk(buf)
-  buf = (buf and buf ~= 0) and buf or api.nvim_get_current_buf()
+  buf = resolve_buf(buf)
   local b = bufs[buf]
   if not b or not b.hunks or #b.hunks == 0 then return end
   local cur = api.nvim_win_get_cursor(0)[1]
   for i = #b.hunks, 1, -1 do
     local h = b.hunks[i]
-    local target = (h.new_count == 0) and math.max(1, h.new_start) or h.new_start
+    local target = hunk_line(h)
     if target < cur then
       api.nvim_win_set_cursor(0, { target, 0 })
       return
     end
   end
-  local last = b.hunks[#b.hunks]
-  local target = (last.new_count == 0) and math.max(1, last.new_start) or last.new_start
-  api.nvim_win_set_cursor(0, { target, 0 })
+  api.nvim_win_set_cursor(0, { hunk_line(b.hunks[#b.hunks]), 0 })
 end
 
 function M.revert_file(buf)

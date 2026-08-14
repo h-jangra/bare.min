@@ -98,7 +98,22 @@ end
 
 local function update_cache(bufnr)
   bufnr = (bufnr and bufnr ~= 0) and bufnr or api.nvim_get_current_buf()
-  cache[bufnr] = get_git_branch(bufnr)
+  if not api.nvim_buf_is_valid(bufnr) then return end
+  local c = cache[bufnr] or {}
+  c.git = get_git_branch(bufnr)
+  c.size = get_filesize(bufnr)
+  c.lsp = get_lsp_name(bufnr)
+  cache[bufnr] = c
+end
+
+local function update_size(bufnr)
+  bufnr = (bufnr and bufnr ~= 0) and bufnr or api.nvim_get_current_buf()
+  if cache[bufnr] then cache[bufnr].size = get_filesize(bufnr) end
+end
+
+local function update_lsp(bufnr)
+  bufnr = (bufnr and bufnr ~= 0) and bufnr or api.nvim_get_current_buf()
+  if cache[bufnr] then cache[bufnr].lsp = get_lsp_name(bufnr) end
 end
 
 local function get_diag_status()
@@ -125,13 +140,17 @@ end
 function M.statusline()
   local letter = modes[api.nvim_get_mode().mode] or "N"
   local bufnr = api.nvim_get_current_buf()
-  if not cache[bufnr] then update_cache(bufnr) end
+  local c = cache[bufnr]
+  if not c then
+    update_cache(bufnr)
+    c = cache[bufnr] or {}
+  end
 
   local file = fn.expand("%:~:.")
   file = file == "" and "Untitled" or (vim.bo.buftype == "terminal" and "Terminal" or file)
   local file_hl = vim.bo.modified and "%#StlAccent# " or "%#StlBubble# "
 
-  local git = cache[bufnr] or ""
+  local git = c.git or ""
   local hl = "StlMode" .. letter
   local cap = "StlCap" .. letter
 
@@ -139,7 +158,7 @@ function M.statusline()
   if git ~= "" then left = left .. " %#StlAccent#" .. git end
   left = left .. get_diag_status() .. "%#StlBubbleCap#"
 
-  local macro, search, lsp, size = get_macro(), get_search_count(), get_lsp_name(bufnr), get_filesize(bufnr)
+  local macro, search, lsp, size = get_macro(), get_search_count(), (c.lsp or ""), (c.size or "")
   local right_parts = {}
   if macro ~= "" then table.insert(right_parts, "%#StlDiagWarn#" .. macro) end
   if search ~= "" then table.insert(right_parts, "%#StlBubble#" .. search) end
@@ -161,7 +180,11 @@ local function redraw() vim.cmd.redrawstatus() end
 
 api.nvim_create_autocmd({ "BufEnter", "DirChanged" },
   { group = augroup, callback = function(args) update_cache(args.buf) end })
-api.nvim_create_autocmd({ "LspAttach", "LspDetach", "RecordingEnter", "RecordingLeave" },
+api.nvim_create_autocmd({ "BufWritePost", "BufReadPost" },
+  { group = augroup, callback = function(args) update_size(args.buf) end })
+api.nvim_create_autocmd({ "LspAttach", "LspDetach" },
+  { group = augroup, callback = function(args) update_lsp(args.buf); redraw() end })
+api.nvim_create_autocmd({ "RecordingEnter", "RecordingLeave" },
   { group = augroup, callback = redraw })
 api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI" }, {
   group = augroup,
