@@ -1,5 +1,7 @@
 local M = {}
 
+M.config = { blur = true, }
+
 local colors = {
   rosewater = "#f2d5cf",
   flamingo  = "#eebebe",
@@ -30,15 +32,24 @@ local colors = {
   none      = "NONE",
 }
 
-function M.setup()
+function M.setup(opts)
+  if opts then
+    M.config = vim.tbl_deep_extend("force", M.config, opts)
+  end
+
   vim.cmd("hi clear")
   if vim.fn.exists("syntax_on") then
     vim.cmd("syntax reset")
   end
 
+  local blur = M.config.blur
+  local bg_base = blur and colors.none or colors.base
+  local bg_mantle = blur and colors.none or colors.mantle
+  local bg_crust = blur and colors.none or colors.crust
+
   local highlights = {
     -- Basic UI
-    Normal = { fg = colors.text, bg = colors.none },
+    Normal = { fg = colors.text, bg = bg_base },
     NormalNC = { link = "Normal" },
     Comment = { fg = colors.surface2, italic = true },
 
@@ -76,23 +87,23 @@ function M.setup()
     Conceal = { fg = colors.surface1 },
     Cursor = { fg = colors.base, bg = colors.text },
     Directory = { fg = colors.blue },
-    EndOfBuffer = { fg = colors.base, bg = colors.none },
+    EndOfBuffer = { fg = colors.base, bg = bg_base },
     ErrorMsg = { fg = colors.red },
     Folded = { fg = colors.blue, bg = colors.overlay0 },
-    FoldColumn = { bg = colors.none, fg = colors.surface2 },
-    SignColumn = { bg = colors.none, fg = colors.overlay0 },
+    FoldColumn = { bg = bg_base, fg = colors.surface2 },
+    SignColumn = { bg = bg_base, fg = colors.overlay0 },
     MatchParen = { fg = colors.peach, bold = true },
     NonText = { fg = colors.crust },
-    NormalFloat = { fg = colors.text, bg = colors.none },
-    FloatBorder = { fg = colors.blue, bg = colors.none },
+    NormalFloat = { fg = colors.text, bg = bg_base },
+    FloatBorder = { fg = colors.blue, bg = bg_base },
     NotifyFloat = { fg = colors.text, bg = colors.mantle },
     NotifyFloatBorder = { fg = colors.blue, bg = colors.mantle },
 
     -- Status line and tabs
-    StatusLine = { fg = colors.text, bg = colors.none },
-    StatusLineNC = { fg = colors.surface2, bg = colors.none },
-    TabLine = { bg = colors.none, fg = colors.overlay0 },
-    TabLineFill = { bg = colors.none },
+    StatusLine = { fg = colors.text, bg = bg_mantle },
+    StatusLineNC = { fg = colors.surface2, bg = bg_mantle },
+    TabLine = { bg = bg_mantle, fg = colors.overlay0 },
+    TabLineFill = { bg = bg_crust },
     TabLineSel = { fg = colors.crust, bg = colors.blue },
 
     -- Visual mode & Search
@@ -102,14 +113,14 @@ function M.setup()
     CurSearch = { link = "IncSearch" },
 
     -- Pmenu
-    Pmenu = { bg = colors.none, fg = colors.text },
+    Pmenu = { bg = bg_base, fg = colors.text },
     PmenuSel = { bg = colors.surface0, fg = colors.blue, bold = true, sp = colors.blue },
-    PmenuSbar = { bg = colors.none },
+    PmenuSbar = { bg = bg_base },
     PmenuThumb = { bg = colors.blue },
     PmenuMatch = { fg = colors.peach, bold = true, sp = colors.peach },
     PmenuMatchSel = { link = "PmenuMatch" },
-    PmenuBorder = { fg = colors.teal, bg = colors.none },
-    PmenuShadow = { fg = colors.teal, bg = colors.none },
+    PmenuBorder = { fg = colors.teal, bg = bg_base },
+    PmenuShadow = { fg = colors.teal, bg = bg_base },
 
     -- Diagnostics
     DiagnosticError = { fg = colors.red },
@@ -140,9 +151,14 @@ function M.setup()
     FloatTitle = { fg = colors.blue, bold = true },
   }
 
-  for group, opts in pairs(highlights) do
-    vim.api.nvim_set_hl(0, group, opts)
+  for group, hl_opts in pairs(highlights) do
+    vim.api.nvim_set_hl(0, group, hl_opts)
   end
+end
+
+function M.toggle_blur()
+  M.config.blur = not M.config.blur
+  M.setup()
 end
 
 return M
