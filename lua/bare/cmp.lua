@@ -1,9 +1,8 @@
 vim.opt.pumheight = 10
 vim.opt.complete = { ".", "w", "b", "u" }
-vim.opt.completeopt = { "menuone", "noinsert", "noselect", "popup" }
+vim.opt.completeopt = { "menuone", "noinsert", "noselect", "popup", "fuzzy", "nearest" }
 vim.opt.pumborder = "rounded"
 -- vim.o.autocomplete      = true
--- vim.o.autocompletedelay = 0
 
 local icons = {
   Text = "󰉿",
@@ -50,7 +49,11 @@ vim.api.nvim_create_autocmd("LspAttach", {
   end,
 })
 
-vim.keymap.set("i", "<C-Space>", vim.lsp.completion.get)
+if vim.lsp.inline_completion then
+  vim.lsp.inline_completion.enable(true)
+end
+
+vim.keymap.set("i", "<C-Space>", vim.lsp.inline_completion.get)
 
 vim.keymap.set("i", "<Tab>", function()
   if vim.snippet.active({ direction = 1 }) then
@@ -73,13 +76,6 @@ vim.keymap.set("i", "<S-Tab>", function()
     return "<S-Tab>"
   end
 end, { expr = true, silent = true })
-
--- vim.keymap.set("i", "<CR>", function()
---   if vim.fn.complete_info().selected ~= -1 then
---     return vim.keycode("<C-y>")
---   end
---   return vim.keycode("<CR>")
--- end, { expr = true, silent = true })
 
 vim.api.nvim_create_autocmd("InsertCharPre", {
   callback = function()

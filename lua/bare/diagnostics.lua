@@ -216,7 +216,7 @@ end
 
 function M.setup()
   vim.diagnostic.config({
-    virtual_text = { current_line = true },
+    virtual_text = true,
     signs = true,
     underline = true,
     update_in_insert = false,
@@ -224,10 +224,6 @@ function M.setup()
     float = { border = "rounded" },
   })
   vim.api.nvim_create_user_command("Diagnostics", M.picker_workspace, { desc = "Workspace diagnostics picker" })
-  vim.api.nvim_create_user_command("DiagnosticsBuffer", M.picker_buffer, { desc = "Buffer diagnostics picker" })
-  vim.api.nvim_create_user_command("DiagnosticsQf", M.quickfix, { desc = "Open workspace diagnostics in quickfix" })
-  vim.api.nvim_create_user_command("DiagnosticsLoc", M.loclist, { desc = "Open buffer diagnostics in location list" })
-  vim.api.nvim_create_user_command("DiagnosticsToggle", M.toggle, { desc = "Toggle diagnostics display" })
 end
 
 return M
