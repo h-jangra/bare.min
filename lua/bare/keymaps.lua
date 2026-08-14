@@ -17,7 +17,7 @@ map("n", "<C-c>", "<cmd>%y+<cr>", { desc = "Copy File to Clipboard" })
 -- Buffers
 map("n", "<Tab>", "<cmd>bnext<cr>", opts)
 map("n", "<S-Tab>", "<cmd>bprevious<cr>", opts)
-map("n", "<leader>x", "<cmd>bdelete!<cr>", { desc = "Close Buffer" })
+map("n", "<leader>b", "<cmd>bdelete!<cr>", { desc = "Close Buffer" })
 vim.keymap.set("n", "<leader>z", function()
   local current = vim.api.nvim_get_current_buf()
 
@@ -26,7 +26,7 @@ vim.keymap.set("n", "<leader>z", function()
       vim.api.nvim_buf_delete(buf, { force = true })
     end
   end
-end, { desc = "Close all listed buffers except current" })
+end, { desc = "Close all but current" })
 
 -- Window navigation
 map("n", "<C-h>", "<C-w>h", opts)
@@ -50,7 +50,6 @@ map("v", "<A-k>", ":m '<-2<cr>gv=gv", opts)
 -- Delete/change (don't yank)
 map("v", "x", '"_x', opts)
 map("v", "c", '"_c', opts)
-map("x", "c", '"_c', opts)
 
 -- Find and replace
 map("n", "<leader>fr", function()
@@ -75,7 +74,8 @@ map("n", "<leader>ws", function() require("bare.lsp").workspace_symbols() end, {
 
 -- Diagnostics & Quickfix Panel
 map("n", "gl", function() require("bare.diagnostics").open_float() end, { desc = "Line Diagnostics" })
-map("n", "<leader>xx", function() require("bare.diagnostics").picker_workspace() end, { desc = "Workspace Diagnostics Picker" })
+map("n", "<leader>xx", function() require("bare.diagnostics").picker_workspace() end,
+  { desc = "Workspace Diagnostics Picker" })
 map("n", "<leader>xX", function() require("bare.diagnostics").picker_buffer() end, { desc = "Buffer Diagnostics Picker" })
 map("n", "<leader>xq", function() require("bare.diagnostics").toggle_qf() end, { desc = "Toggle Quickfix Window" })
 map("n", "<leader>xl", function() require("bare.diagnostics").toggle_loc() end, { desc = "Toggle Location List" })

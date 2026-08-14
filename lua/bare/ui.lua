@@ -1,5 +1,13 @@
 local M = {}
 
+local function content_width(lines)
+  local width = 0
+  for _, line in ipairs(lines or {}) do
+    width = math.max(width, vim.fn.strdisplaywidth(line))
+  end
+  return width
+end
+
 function M.float(opts)
   opts = opts or {}
 
@@ -8,8 +16,12 @@ function M.float(opts)
     buf = vim.api.nvim_create_buf(false, true)
   end
 
-  local width = opts.width or math.floor(vim.o.columns * 0.8)
+  local width = opts.width or content_width(opts.lines)
   local height = opts.height or math.floor(vim.o.lines * 0.6)
+
+  if width == 0 then
+    width = math.floor(vim.o.columns * 0.8)
+  end
 
   local cfg = {
     relative = opts.relative or "editor",

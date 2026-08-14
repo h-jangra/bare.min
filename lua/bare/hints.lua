@@ -167,10 +167,9 @@ local function render(query, maps)
   local clues = collect_clues(query, maps)
   if #clues == 0 then return close() end
 
-  local max_k, max_len = 0, 0
-  for _, c in ipairs(clues) do
-    max_k = math.max(max_k, #c.key)
-    max_len = math.max(max_len, #c.key + 2 + #c.desc)
+  local max_k = 0
+  for _, it in ipairs(clues) do
+    max_k = math.max(max_k, #it.key)
   end
 
   local lines, hls = {}, {}
@@ -181,18 +180,15 @@ local function render(query, maps)
     table.insert(hls, { i - 1, 1 + max_k + 2, #line, it.is_group and "Directory" or "Normal" })
   end
 
-  local width = math.min(vim.o.columns - 4, math.max(26, max_len + 4))
   local height = math.min(vim.o.lines - 4, #lines)
   local buf, win = ui.float({
     buf = state.buf,
     win = state.win,
-    width = width,
+    lines = lines,
     height = height,
     row = math.max(1, vim.o.lines - height - 3),
-    col = math.max(1, vim.o.columns - width - 2),
-    border = "rounded",
+    col = math.max(1, vim.o.columns - 2),
     title = string.format(" %s ", format_title(query)),
-    title_pos = "center",
     enter = false,
     focusable = false,
   })

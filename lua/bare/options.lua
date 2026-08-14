@@ -29,7 +29,6 @@ opt.swapfile       = false
 opt.undodir        = vim.fs.joinpath(vim.fn.stdpath("data"), "undodir")
 opt.undofile       = true
 
-opt.lazyredraw     = true
 opt.mousescroll    = "ver:5,hor:0"
 opt.synmaxcol      = 240
 opt.timeoutlen     = 300
@@ -42,8 +41,7 @@ opt.foldlevel      = 99
 opt.foldlevelstart = 99
 opt.foldmethod     = "expr"
 
-vim.loader.enable()
-vim.opt.shadafile = ""
+vim.opt.shadafile  = ""
 
 -- Highlight on yank
 vim.api.nvim_create_autocmd("TextYankPost", {

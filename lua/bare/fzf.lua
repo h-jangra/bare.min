@@ -60,8 +60,8 @@ function M.grep()
 end
 
 function M.setup()
-  vim.keymap.set("n", "<leader><leader>", M.files)
-  vim.keymap.set("n", "<leader>fg", M.grep)
+  vim.keymap.set("n", "<leader><leader>", M.files, { desc = "Open FZF" })
+  vim.keymap.set("n", "<leader>fg", M.grep, { desc = "Open Grep" })
 end
 
 return M
