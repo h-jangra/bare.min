@@ -29,7 +29,7 @@ function _G.winbar_buffers()
     local path = vim.api.nvim_buf_get_name(b)
     local name = path == "" and "Untitled" or vim.fs.basename(path)
     local ft = vim.bo[b].filetype ~= "" and vim.bo[b].filetype or vim.filetype.match({ filename = name }) or
-    name:match("%.([^.]+)$")
+        name:match("%.([^.]+)$")
     local icon = icons.get_icon(ft)
     local hl = (b == cur) and "WinBarActive" or "WinBarInactive"
     local mod = vim.bo[b].modified and " 󱇬" or ""
@@ -47,7 +47,14 @@ local function update(ev)
 
   if ev and ev.event == "BufEnter" and vim.api.nvim_buf_get_name(0) ~= "" then
     for _, b in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.api.nvim_buf_is_valid(b) and vim.bo[b].buflisted and vim.api.nvim_buf_get_name(b) == "" and not vim.bo[b].modified and vim.bo[b].buftype == "" and #vim.fn.win_findbuf(b) == 0 then
+      if
+          vim.api.nvim_buf_is_valid(b)
+          and vim.bo[b].buflisted
+          and vim.api.nvim_buf_get_name(b) == ""
+          and not vim.bo[b].modified
+          and vim.bo[b].buftype == ""
+          and #vim.fn.win_findbuf(b) == 0
+      then
         pcall(vim.api.nvim_buf_delete, b, { force = true })
       end
     end
@@ -70,7 +77,9 @@ local function update(ev)
 end
 
 vim.api.nvim_create_autocmd("TermOpen", {
-  callback = function(ev) vim.bo[ev.buf].buflisted = false end,
+  callback = function(ev)
+    vim.bo[ev.buf].buflisted = false
+  end,
 })
 
 vim.api.nvim_create_autocmd(

@@ -19,13 +19,13 @@ map("n", "<Tab>", "<cmd>bnext<cr>", opts)
 map("n", "<S-Tab>", "<cmd>bprevious<cr>", opts)
 map("n", "<leader>b", "<cmd>bdelete!<cr>", { desc = "Close Buffer" })
 vim.keymap.set("n", "<leader>z", function()
-  local current = vim.api.nvim_get_current_buf()
+	local current = vim.api.nvim_get_current_buf()
 
-  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
-    if buf ~= current and vim.bo[buf].buflisted then
-      vim.api.nvim_buf_delete(buf, { force = true })
-    end
-  end
+	for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+		if buf ~= current and vim.bo[buf].buflisted then
+			vim.api.nvim_buf_delete(buf, { force = true })
+		end
+	end
 end, { desc = "Close all but current" })
 
 -- Window navigation
@@ -53,55 +53,94 @@ map("v", "c", '"_c', opts)
 
 -- Find and replace
 map("n", "<leader>fr", function()
-  local find = vim.fn.input("Find: ")
-  if find == "" then
-    return
-  end
-  local replace = vim.fn.input("Replace: ")
-  vim.cmd("%s/" .. find .. "/" .. replace .. "/gc")
+	local find = vim.fn.input("Find: ")
+	if find == "" then
+		return
+	end
+	local replace = vim.fn.input("Replace: ")
+	vim.cmd("%s/" .. find .. "/" .. replace .. "/gc")
 end, { desc = "Find & Replace" })
 
 -- Copy diagnostics to clipboard
-map("n", "<leader>cd", function() require("bare.diagnostics").copy_line() end, { desc = "Copy Line Diagnostics" })
+map("n", "<leader>cd", function()
+	require("bare.diagnostics").copy_line()
+end, { desc = "Copy Line Diagnostics" })
 
 -- LSP
 map("n", "<leader>lf", function()
-  vim.lsp.buf.format({ async = true, timeout_ms = 2000 })
+	vim.lsp.buf.format({ async = true, timeout_ms = 2000 })
 end, { desc = "LSP Format" })
 map("n", "<leader>li", "gg=G``", { desc = "Indent Entire File" })
-map("n", "<leader>ds", function() require("bare.lsp").document_symbols() end, { desc = "Document Symbols" })
-map("n", "<leader>ws", function() require("bare.lsp").workspace_symbols() end, { desc = "Workspace Symbols" })
+map("n", "<leader>ds", function()
+	require("bare.lsp").document_symbols()
+end, { desc = "Document Symbols" })
+map("n", "<leader>ws", function()
+	require("bare.lsp").workspace_symbols()
+end, { desc = "Workspace Symbols" })
 
 -- Diagnostics & Quickfix Panel
-map("n", "gl", function() require("bare.diagnostics").open_float() end, { desc = "Line Diagnostics" })
-map("n", "<leader>xx", function() require("bare.diagnostics").picker_workspace() end,
-  { desc = "Workspace Diagnostics Picker" })
-map("n", "<leader>xX", function() require("bare.diagnostics").picker_buffer() end, { desc = "Buffer Diagnostics Picker" })
-map("n", "<leader>xq", function() require("bare.diagnostics").toggle_qf() end, { desc = "Toggle Quickfix Window" })
-map("n", "<leader>xl", function() require("bare.diagnostics").toggle_loc() end, { desc = "Toggle Location List" })
-map("n", "<leader>xt", function() require("bare.diagnostics").toggle() end, { desc = "Toggle Diagnostics" })
-map("n", "]d", function() require("bare.diagnostics").next() end, { desc = "Next Diagnostic" })
-map("n", "[d", function() require("bare.diagnostics").prev() end, { desc = "Prev Diagnostic" })
-map("n", "]e", function() require("bare.diagnostics").next_error() end, { desc = "Next Error" })
-map("n", "[e", function() require("bare.diagnostics").prev_error() end, { desc = "Prev Error" })
-map("n", "]w", function() require("bare.diagnostics").next_warn() end, { desc = "Next Warning" })
-map("n", "[w", function() require("bare.diagnostics").prev_warn() end, { desc = "Prev Warning" })
+map("n", "gl", function()
+	require("bare.diagnostics").open_float()
+end, { desc = "Line Diagnostics" })
+map("n", "<leader>xx", function()
+	require("bare.diagnostics").picker_workspace()
+end, { desc = "Workspace Diagnostics Picker" })
+map("n", "<leader>xX", function()
+	require("bare.diagnostics").picker_buffer()
+end, { desc = "Buffer Diagnostics Picker" })
+map("n", "<leader>xq", function()
+	require("bare.diagnostics").toggle_qf()
+end, { desc = "Toggle Quickfix Window" })
+map("n", "<leader>xl", function()
+	require("bare.diagnostics").toggle_loc()
+end, { desc = "Toggle Location List" })
+map("n", "<leader>xt", function()
+	require("bare.diagnostics").toggle()
+end, { desc = "Toggle Diagnostics" })
+map("n", "]d", function()
+	require("bare.diagnostics").next()
+end, { desc = "Next Diagnostic" })
+map("n", "[d", function()
+	require("bare.diagnostics").prev()
+end, { desc = "Prev Diagnostic" })
+map("n", "]e", function()
+	require("bare.diagnostics").next_error()
+end, { desc = "Next Error" })
+map("n", "[e", function()
+	require("bare.diagnostics").prev_error()
+end, { desc = "Prev Error" })
+map("n", "]w", function()
+	require("bare.diagnostics").next_warn()
+end, { desc = "Next Warning" })
+map("n", "[w", function()
+	require("bare.diagnostics").prev_warn()
+end, { desc = "Prev Warning" })
 
 -- Git (navigation, preview, revert)
-map("n", "]h", function() require("bare.git").next_hunk() end, { desc = "Next Git Hunk" })
-map("n", "[h", function() require("bare.git").prev_hunk() end, { desc = "Prev Git Hunk" })
-map("n", "<leader>gp", function() require("bare.git").preview_hunk() end, { desc = "Git Preview Hunk" })
-map("n", "<leader>gr", function() require("bare.git").revert_hunk() end, { desc = "Git Revert Hunk" })
-map("n", "<leader>gR", function() require("bare.git").revert_file() end, { desc = "Git Revert File" })
+map("n", "]h", function()
+	require("bare.git").next_hunk()
+end, { desc = "Next Git Hunk" })
+map("n", "[h", function()
+	require("bare.git").prev_hunk()
+end, { desc = "Prev Git Hunk" })
+map("n", "<leader>gp", function()
+	require("bare.git").preview_hunk()
+end, { desc = "Git Preview Hunk" })
+map("n", "<leader>gr", function()
+	require("bare.git").revert_hunk()
+end, { desc = "Git Revert Hunk" })
+map("n", "<leader>gR", function()
+	require("bare.git").revert_file()
+end, { desc = "Git Revert File" })
 
 -- Notifications
 map("n", "<leader>n", function()
-  require("bare.notify").show_history()
+	require("bare.notify").show_history()
 end, { desc = "Show Notification History" })
 
 -- Config
 map("n", "<leader>fc", function()
-  vim.cmd("edit " .. vim.fn.stdpath("config") .. "/init.lua")
+	vim.cmd("edit " .. vim.fn.stdpath("config") .. "/init.lua")
 end, { desc = "Edit Config" })
 
 map("i", "jk", "<Esc>", opts)
