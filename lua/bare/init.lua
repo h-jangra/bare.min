@@ -26,5 +26,5 @@ vim.schedule(function()
 end)
 
 vim.keymap.set("n", "<leader>e", function()
-	require("bare.files").toggle()
+	require("bare.filetree").toggle()
 end, { desc = "Toggle file explorer" })
