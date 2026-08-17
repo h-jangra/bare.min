@@ -27,6 +27,7 @@ local icons = {
 	lua = { "󰢱", "#51a0cf" },
 	markdown = { "󰂺", "#519aba" },
 	mp4 = { "", "#a074c4" },
+	nim = { "", "#ffe953" },
 	pdf = { "󰈦", "#b30b00" },
 	png = { "󰸭", "#a074c4" },
 	python = { "", "#3776ab" },

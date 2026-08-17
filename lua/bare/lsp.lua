@@ -103,6 +103,7 @@ local servers = {
     ft = { "html", "css", "javascript", "javascriptreact", "typescript", "typescriptreact", "vue", "svelte" },
   },
   qmlls = { cmd = { "qml-language-server" }, ft = { "qml" } },
+  nimls = { cmd = { "nimlangserver" }, ft = { "nim","nimble" } },
 }
 
 local sym_icons = {
