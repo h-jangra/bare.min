@@ -10,7 +10,7 @@ end
 setup_highlights()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
 
-_G.goto_buf = vim.api.nvim_set_current_buf
+_G.goto_buf = function(minwid) vim.api.nvim_set_current_buf(minwid) end
 
 local function get_valid_bufs()
   return vim.iter(vim.api.nvim_list_bufs()):filter(function(b)
