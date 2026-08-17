@@ -619,29 +619,35 @@ function M.close()
 end
 
 function M.toggle()
-  if win() then M.close() else M.open() end
+  if win() then
+    M.close()
+  else
+    M.reveal()
+  end
 end
 
 function M.reveal()
   local current_buf = vim.api.nvim_buf_get_name(0)
-  if current_buf == "" or current_buf:find("FileTree") then return end
+  if current_buf:find("FileTree") then return end
   if not win() then M.open() end
+  if current_buf == "" then return end
+
   local r = root()
   if current_buf:sub(1, #r) == r then
     local curr = current_buf
-    while curr and curr ~= r do
+    while curr ~= r do
       local parent = vim.fs.dirname(curr)
       if parent == curr then break end
       state.expanded[parent] = true
       curr = parent
     end
   end
+
   render(false)
   set_cursor_to_path(current_buf)
 end
 
 function M.setup()
-  vim.keymap.set("n", "<leader>e", M.toggle, { desc = "Open file tree" })
   setup_highlights()
 
   vim.api.nvim_create_autocmd("ColorScheme", {
@@ -674,9 +680,9 @@ function M.setup()
       end
     end,
   })
-
   vim.api.nvim_create_user_command("FileTree", function() M.toggle() end, {})
   vim.api.nvim_create_user_command("FileTreeFind", function() M.reveal() end, {})
+  vim.api.nvim_create_user_command("FileTreeClose", function() M.close() end, {})
 end
 
 M.setup()

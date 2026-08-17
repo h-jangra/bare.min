@@ -1,11 +1,10 @@
 local icons = require("bare.icons")
 
 local function setup_highlights()
-  local hl = vim.api.nvim_get_hl(0, { name = "TabLineSel", link = false })
   vim.api.nvim_set_hl(0, "WinBar", {})
   vim.api.nvim_set_hl(0, "WinBarNC", {})
-  vim.api.nvim_set_hl(0, "WinBarActive", { fg = hl.fg, bg = hl.bg or hl.fg, bold = true, })
-  vim.api.nvim_set_hl(0, "WinBarInactive", { fg = hl.bg, bg = hl.fg, })
+  vim.api.nvim_set_hl(0, "WinBarActive", { fg = "#2E3440", bg = "#88C0D0", bold = true, })
+  vim.api.nvim_set_hl(0, "WinBarInactive", { fg = "#81A1C1", bg = "#434C5E", })
 end
 setup_highlights()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
@@ -65,7 +64,11 @@ local function update(ev)
     if vim.api.nvim_win_is_valid(win) then
       local buf = vim.api.nvim_win_get_buf(win)
       local cfg = vim.api.nvim_win_get_config(win)
-      if cfg.relative == "" and vim.bo[buf].buflisted and show_winbar then
+      if cfg.relative == ""
+          and vim.bo[buf].buflisted
+          and vim.bo[buf].buftype == ""
+          and show_winbar
+      then
         vim.wo[win].winbar = "%{%v:lua.winbar_buffers()%}"
       else
         vim.wo[win].winbar = ""

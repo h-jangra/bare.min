@@ -1,5 +1,4 @@
 local M = {}
-local ui = require("bare.ui")
 
 local ft_formatter = {
   html = "html",
@@ -81,11 +80,7 @@ local servers = {
   taplo = { cmd = { "taplo", "lsp", "stdio" }, ft = { "toml" } },
   bash_ls = { cmd = { "bash-language-server", "start" }, ft = { "bash", "sh" } },
   ansiblels = { cmd = { "ansible-language-server", "--stdio" }, ft = { "yaml", "yml" } },
-  tinymist = {
-    cmd = { "tinymist", "lsp" },
-    ft = { "typst" },
-    settings = { exportPdf = "onType", formatterMode = "typstyle" },
-  },
+  tinymist = { cmd = { "tinymist", "lsp" }, ft = { "typst" }, },
   jdtls = {
     cmd = { "jdtls" },
     ft = { "java" },
@@ -103,156 +98,8 @@ local servers = {
     ft = { "html", "css", "javascript", "javascriptreact", "typescript", "typescriptreact", "vue", "svelte" },
   },
   qmlls = { cmd = { "qml-language-server" }, ft = { "qml" } },
-  nimls = { cmd = { "nimlangserver" }, ft = { "nim","nimble" } },
+  nimls = { cmd = { "nimlangserver" }, ft = { "nim", "nimble" } },
 }
-
-local sym_icons = {
-  Class = "󰠱",
-  Constructor = "",
-  Enum = "",
-  Field = "󰜢",
-  Function = "󰊕",
-  Interface = "",
-  Method = "󰆧",
-  Module = "󰕳",
-  Property = "󰜢",
-  Struct = "󰙅",
-  Variable = "󰀫",
-  Constant = "󰏿",
-  String = "󰀬",
-  Number = "󰎠",
-  Boolean = "◩",
-}
-
-local function flatten_symbols(symbols, depth, list)
-  list, depth = list or {}, depth or 0
-  for _, s in ipairs(symbols) do
-    local kind = vim.lsp.protocol.SymbolKind[s.kind] or "Unknown"
-    local r = s.range or (s.location and s.location.range) or s.selectionRange
-    table.insert(list, {
-      name = s.name,
-      kind = kind,
-      depth = depth,
-      lnum = r and (r.start.line + 1) or 1,
-      col = r and r.start.character or 0,
-    })
-    if s.children and #s.children > 0 then
-      flatten_symbols(s.children, depth + 1, list)
-    end
-  end
-  return list
-end
-
-local function open_picker(title, items, on_select)
-  if #items == 0 then
-    return vim.notify("No symbols found", vim.log.levels.INFO)
-  end
-  local orig_win, lines = vim.api.nvim_get_current_win(), {}
-  for _, it in ipairs(items) do
-    local icon = sym_icons[it.kind] or "󰈤"
-    local indent = it.depth and string.rep("  ", it.depth) or ""
-    local extra = it.loc or ("line " .. it.lnum)
-    table.insert(lines, string.format("%s%s %-30s  %s", indent, icon, it.name, extra))
-  end
-
-  local buf, win = ui.float({
-    width = math.min(math.floor(vim.o.columns * 0.85), 80),
-    height = math.min(#lines, math.floor(vim.o.lines * 0.6)),
-    title = string.format(" %s (%d) ", title, #items),
-    enter = true,
-  })
-
-  vim.bo[buf].modifiable = true
-  vim.api.nvim_buf_set_lines(buf, 0, -1, false, lines)
-  vim.bo[buf].modifiable, vim.bo[buf].buftype, vim.bo[buf].filetype = false, "nofile", "bare_symbols"
-  vim.wo[win].cursorline = true
-
-  local function choose(cmd)
-    local idx = vim.api.nvim_win_get_cursor(win)[1]
-    if vim.api.nvim_win_is_valid(win) then
-      vim.api.nvim_win_close(win, true)
-    end
-    if vim.api.nvim_win_is_valid(orig_win) then
-      vim.api.nvim_set_current_win(orig_win)
-    end
-    if items[idx] then
-      on_select(items[idx], cmd or "edit")
-    end
-  end
-
-  local opts = { buffer = buf, silent = true, nowait = true }
-  vim.keymap.set("n", "<CR>", function() choose("edit") end, opts)
-  vim.keymap.set("n", "v", function() choose("vsplit") end, opts)
-  vim.keymap.set("n", "s", function() choose("split") end, opts)
-  vim.keymap.set("n", "<C-t>", function() choose("tabedit") end, opts)
-  for _, k in ipairs({ "q", "<Esc>" }) do
-    vim.keymap.set("n", k, function()
-      if vim.api.nvim_win_is_valid(win) then
-        vim.api.nvim_win_close(win, true)
-      end
-    end, opts)
-  end
-end
-
-function M.document_symbols()
-  local b = vim.api.nvim_get_current_buf()
-  vim.lsp.buf_request(
-    b,
-    "textDocument/documentSymbol",
-    { textDocument = vim.lsp.util.make_text_document_params(b) },
-    function(err, res)
-      if err or not res or #res == 0 then
-        return vim.notify("No document symbols found", vim.log.levels.INFO)
-      end
-      open_picker("Document Symbols", flatten_symbols(res), function(it)
-        vim.api.nvim_win_set_cursor(0, { it.lnum, it.col })
-        vim.cmd("normal! zz")
-      end)
-    end
-  )
-end
-
-function M.workspace_symbols(query)
-  local function fetch(q)
-    vim.lsp.buf_request(0, "workspace/symbol", { query = q or "" }, function(err, res)
-      if err or not res or #res == 0 then
-        return vim.notify("No workspace symbols found", vim.log.levels.INFO)
-      end
-      local items = {}
-      for _, s in ipairs(res) do
-        local loc = s.location
-        local uri = loc and (loc.uri or loc.targetUri)
-        local r = loc and (loc.range or loc.targetSelectionRange or loc.targetRange)
-        local path = uri and vim.uri_to_fname(uri) or ""
-        local lnum = r and (r.start.line + 1) or 1
-        table.insert(items, {
-          name = s.name,
-          kind = vim.lsp.protocol.SymbolKind[s.kind] or "Unknown",
-          path = path,
-          loc = (path ~= "" and vim.fs.relpath(vim.fn.getcwd(), path) or path) .. ":" .. lnum,
-          lnum = lnum,
-          col = r and r.start.character or 0,
-        })
-      end
-      open_picker("Workspace Symbols", items, function(it, cmd)
-        if it.path ~= "" then
-          vim.cmd((cmd or "edit") .. " " .. vim.fn.fnameescape(it.path))
-        end
-        vim.api.nvim_win_set_cursor(0, { it.lnum, it.col })
-        vim.cmd("normal! zz")
-      end)
-    end)
-  end
-  if query then
-    fetch(query)
-  else
-    vim.ui.input({ prompt = "Workspace Symbol: " }, function(i)
-      if i then
-        fetch(i)
-      end
-    end)
-  end
-end
 
 local function on_attach(_, bufnr)
   if vim.lsp.inlay_hint then
@@ -262,8 +109,6 @@ local function on_attach(_, bufnr)
     vim.keymap.set(m, l, r, { buffer = bufnr, silent = true, desc = desc })
   end
   map({ "n", "i" }, "<C-k>", vim.lsp.buf.signature_help, "Signature Help")
-  map("n", "<leader>ds", M.document_symbols, "Document Symbols")
-  map("n", "<leader>ws", M.workspace_symbols, "Workspace Symbols")
 end
 
 local capabilities = vim.lsp.protocol.make_client_capabilities()
@@ -278,20 +123,8 @@ capabilities.textDocument.completion.completionItem = {
 }
 
 local root_markers = {
-  ".git",
-  "pom.xml",
-  "build.gradle",
-  "mvnw",
-  "gradlew",
-  "package.json",
-  "Cargo.toml",
-  "go.mod",
-  "pyproject.toml",
-  "setup.py",
-  "requirements.txt",
-  ".venv",
-  ".luarc.json",
-  "stylua.toml",
+  ".git", "pom.xml", "build.gradle", "mvnw", "gradlew", "package.json", "Cargo.toml",
+  "go.mod", "pyproject.toml", "setup.py", "requirements.txt", ".venv", ".luarc.json", "stylua.toml",
 }
 
 local ft_to_servers = {}
@@ -348,35 +181,34 @@ else
   })
 end
 
+local function organize_imports(buf, name)
+  local client = name and vim.lsp.get_clients({ bufnr = buf, name = name })[1]
+  if not client then return end
+
+  local results = vim.lsp.buf_request_sync(buf, "textDocument/codeAction", {
+    textDocument = vim.lsp.util.make_text_document_params(buf),
+    context = { only = { "source.organizeImports" } },
+  }, 1000)
+
+  for _, result in pairs(results or {}) do
+    for _, action in ipairs(result.result or {}) do
+      if action.edit then
+        vim.lsp.util.apply_workspace_edit(action.edit, client.offset_encoding)
+      end
+      if action.command then
+        client:exec_cmd(action.command, { bufnr = buf })
+      end
+    end
+  end
+end
+
 vim.api.nvim_create_autocmd("BufWritePre", {
   group = group,
   callback = function(args)
-    local ft, b = vim.bo[args.buf].filetype, args.buf
-    local n = organise_imports_client[ft]
-    local c = n and vim.lsp.get_clients({ bufnr = b, name = n })[1]
-    if c then
-      if n == "jdtls" then
-        c:exec_cmd(
-          { command = "java.edit.organizeImports", arguments = { vim.uri_from_bufnr(b) } },
-          { bufnr = b }
-        )
-      else
-        local r = vim.lsp.buf_request_sync(b, "textDocument/codeAction", {
-          textDocument = vim.lsp.util.make_text_document_params(b),
-          context = { only = { "source.organizeImports" } },
-        }, 1000)
-        for _, res in pairs(r or {}) do
-          for _, a in pairs(res.result or {}) do
-            if a.edit then
-              vim.lsp.util.apply_workspace_edit(a.edit, c.offset_encoding)
-            end
-            if a.command then
-              c:exec_cmd(a.command, { bufnr = b })
-            end
-          end
-        end
-      end
-    end
+    local buf = args.buf
+    local ft = vim.bo[buf].filetype
+
+    organize_imports(buf, organise_imports_client[ft])
     vim.lsp.buf.format({
       bufnr = b,
       filter = function(cl)
@@ -385,5 +217,33 @@ vim.api.nvim_create_autocmd("BufWritePre", {
     })
   end,
 })
+
+function M.document_symbols()
+  vim.lsp.buf_request(0, "textDocument/documentSymbol", {
+    textDocument = vim.lsp.util.make_text_document_params(),
+  }, function(_, result)
+    if not result or #result == 0 then
+      return vim.notify("No document symbols", vim.log.levels.INFO)
+    end
+
+    vim.lsp.buf.document_symbol()
+  end)
+end
+
+function M.workspace_symbols()
+  vim.ui.input({ prompt = "Symbol: " }, function(query)
+    if not query or query == "" then
+      return
+    end
+
+    vim.lsp.buf_request(0, "workspace/symbol", { query = query }, function(_, result)
+      if not result or #result == 0 then
+        return vim.notify("No workspace symbols", vim.log.levels.INFO)
+      end
+
+      vim.lsp.buf.workspace_symbol(query)
+    end)
+  end)
+end
 
 return M

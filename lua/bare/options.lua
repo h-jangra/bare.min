@@ -28,6 +28,7 @@ opt.backup = false
 opt.swapfile = false
 opt.undodir = vim.fs.joinpath(vim.fn.stdpath("data"), "undodir")
 opt.undofile = true
+opt.clipboard = "unnamedplus"
 
 opt.mousescroll = "ver:5,hor:0"
 opt.synmaxcol = 240

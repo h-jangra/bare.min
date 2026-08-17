@@ -2,37 +2,38 @@ local M = {}
 local api, fn, fs = vim.api, vim.fn, vim.fs
 
 local mode_colors = {
-  N = "#8caaee",
-  I = "#99d1db",
-  V = "#ca9ee6",
-  R = "#eebebe",
-  C = "#e5c890",
-  T = "#ea999c",
+  N = "#88C0D0",
+  I = "#ECEFF4",
+  V = "#8FBCBB",
+  R = "#a3be8c",
+  C = "#b48ead",
+  T = "#8FBCBB",
 }
 
 local modes = {
   n = "N",
   i = "I",
   v = "V",
-  V = "V",
-  ["\22"] = "V",
+  V = "V-L",
+  ["\22"] = "V-B",
   R = "R",
+  s = "S",
   c = "C",
   r = "R",
   t = "T",
 }
 
 local function set_hl()
-  local bg = "#232634"
+  local bg = "#3B4252"
   local hl = api.nvim_set_hl
-  hl(0, "StlBase", { fg = "#c6d0f5", bg = bg })
-  hl(0, "StlModified", { fg = "#ef9f76", bg = bg, bold = true })
-  hl(0, "StlGitBranch", { fg = "#ca9ee6", bg = bg })
-  hl(0, "StlLsp", { fg = "#81c8be", bg = bg })
-  hl(0, "StlDiagErr", { fg = "#e78284", bg = bg, bold = true })
-  hl(0, "StlDiagWarn", { fg = "#e5c890", bg = bg })
-  hl(0, "StlDiagInfo", { fg = "#85c1dc", bg = bg })
-  hl(0, "StlDiagHint", { fg = "#99d1db", bg = bg })
+  hl(0, "StlBase", { fg = "#E5E9F0", bg = bg })
+  hl(0, "StlModified", { fg = "#a3be8c", bg = bg, bold = true })
+  hl(0, "StlGitBranch", { fg = "#88C0D0", bg = bg })
+  hl(0, "StlLsp", { fg = "#8FBCBB", bg = bg })
+  hl(0, "StlDiagErr", { fg = "#BF616A", bg = bg, bold = true })
+  hl(0, "StlDiagWarn", { fg = "#EBCB8B", bg = bg })
+  hl(0, "StlDiagInfo", { fg = "#88C0D0", bg = bg })
+  hl(0, "StlDiagHint", { fg = "#8FBCBB", bg = bg })
   for m, color in pairs(mode_colors) do
     hl(0, "StlMode" .. m, { fg = bg, bg = color, bold = true })
   end
@@ -116,17 +117,17 @@ function M.statusline()
   -- Right: Macro | Search | LSP | Line count
   local right = {}
   local reg = fn.reg_recording()
-  if reg ~= "" then right[#right + 1] = "%#StlDiagWarn#󰑋 " .. reg end
+  if reg ~= "" then right[#right + 1] = " %#StlDiagWarn#" .. reg end
   local s = get_search()
-  if s ~= "" then right[#right + 1] = "%#StlBase#" .. s end
+  if s ~= "" then right[#right + 1] = " %#StlBase#" .. s end
   local lsp = lsp_names()
-  if lsp ~= "" then right[#right + 1] = "%#StlLsp#" .. lsp end
+  if lsp ~= "" then right[#right + 1] = " %#StlLsp#" .. lsp end
 
   local right_str = #right > 0
       and string.format("%%#StlBase#%s %%#%s# %%L ", table.concat(right, " "), hl)
       or string.format("%%#%s# %%L ", hl)
 
-  return table.concat(left, " ") .. " %=" .. right_str
+  return table.concat(left, " ") .. " %#StatusLine# %=" .. right_str
 end
 
 local grp = api.nvim_create_augroup("StlEvents", { clear = true })

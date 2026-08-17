@@ -39,6 +39,9 @@ function M.float(opts)
 
 	if opts.win and vim.api.nvim_win_is_valid(opts.win) then
 		vim.api.nvim_win_set_config(opts.win, cfg)
+		if buf and vim.api.nvim_win_get_buf(opts.win) ~= buf then
+			vim.api.nvim_win_set_buf(opts.win, buf)
+		end
 		return buf, opts.win
 	end
 
