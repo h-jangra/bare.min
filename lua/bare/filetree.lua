@@ -257,29 +257,34 @@ local function ensure_editor_options(w)
   return w
 end
 
-local function get_target_win()
-  local function is_valid(w)
-    return w and vim.api.nvim_win_is_valid(w) and w > 0 and w ~= state.win
-        and vim.api.nvim_win_get_config(w).relative == ""
-        and vim.bo[vim.api.nvim_win_get_buf(w)].filetype ~= "filetree"
-        and vim.bo[vim.api.nvim_win_get_buf(w)].buftype == ""
-  end
+local function is_valid_target(w)
+  return w and vim.api.nvim_win_is_valid(w) and w > 0 and w ~= state.win
+      and vim.api.nvim_win_get_config(w).relative == ""
+      and vim.bo[vim.api.nvim_win_get_buf(w)].filetype ~= "filetree"
+      and vim.bo[vim.api.nvim_win_get_buf(w)].buftype == ""
+end
+
+local function find_target_win()
   local prev = vim.fn.win_getid(vim.fn.winnr("#"))
-  local target = is_valid(prev) and prev or nil
-  if not target then
-    for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
-      if is_valid(w) then
-        target = w; break
-      end
-    end
+  if is_valid_target(prev) then return prev end
+  for _, w in ipairs(vim.api.nvim_tabpage_list_wins(0)) do
+    if is_valid_target(w) then return w end
   end
-  if not target and win() then
+end
+
+local function create_target_win()
+  if win() then
     vim.api.nvim_set_current_win(state.win)
     vim.cmd("rightbelow vsplit")
-    target = vim.api.nvim_get_current_win()
+    local target = vim.api.nvim_get_current_win()
     vim.api.nvim_win_set_width(state.win, state.width)
+    return target
   end
-  return ensure_editor_options(target or vim.api.nvim_get_current_win())
+  return vim.api.nvim_get_current_win()
+end
+
+local function get_target_win()
+  return find_target_win() or create_target_win()
 end
 
 local function open_file()
@@ -375,19 +380,8 @@ end
 
 local function toggle_file()
   sel.anchor, sel.base = nil, nil
-  local mode = vim.api.nvim_get_mode().mode
-  if mode:match("[vV\22]") then
-    vim.cmd("normal! \27")
-    local s, e = vim.fn.line("'<"), vim.fn.line("'>")
-    if s > e then s, e = e, s end
-    for l = s, e do
-      local it = state.line_to_path[l - 1]
-      if it then state.selected[it.path] = not state.selected[it.path] or nil end
-    end
-  else
-    local it = item()
-    if it then state.selected[it.path] = not state.selected[it.path] or nil end
-  end
+  local it = item()
+  if it then state.selected[it.path] = not state.selected[it.path] or nil end
   render(false)
 end
 
@@ -422,7 +416,12 @@ local function create_entry(is_dir)
     table.insert(state.undo, { type = "create", path = path, is_dir = is_dir, name = name })
     state.expanded[parent] = true
     render(true)
-    if not is_dir then vim.schedule(open_file) end
+    if not is_dir then
+      vim.schedule(function()
+        set_cursor_to_path(path)
+        open_file()
+      end)
+    end
   end)
 end
 
@@ -581,7 +580,7 @@ local function setup_buffer()
     { "r",     rename_item },
     { "u",     undo_operation },
     { "R",     function() render(true) end },
-    { "m",     toggle_file,                       mode = { "n", "v" } },
+    { "m",     toggle_file },
     { "M", function()
       state.selected, sel.anchor, sel.base = {}, nil, nil; render(false)
     end },
@@ -641,7 +640,7 @@ function M.reveal()
   set_cursor_to_path(current_buf)
 end
 
-function M.setup(opts)
+function M.setup()
   vim.keymap.set("n", "<leader>e", M.toggle, { desc = "Open file tree" })
   setup_highlights()
 
@@ -652,7 +651,7 @@ function M.setup(opts)
     end,
   })
 
-  vim.api.nvim_create_autocmd({ "BufWritePost", "FocusGained" }, {
+  vim.api.nvim_create_autocmd("BufWritePost", {
     callback = function()
       if win() then refresh_git() end
     end,

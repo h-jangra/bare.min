@@ -1,17 +1,16 @@
 local icons = require("bare.icons")
 
 local function setup_highlights()
-  local tab_sel = vim.api.nvim_get_hl(0, { name = "TabLineSel", link = false })
-  local active_bg = tab_sel.bg or tab_sel.fg
-  vim.api.nvim_set_hl(0, "WinBar", { bg = "NONE" })
-  vim.api.nvim_set_hl(0, "WinBarNC", { bg = "NONE" })
-  vim.api.nvim_set_hl(0, "WinBarActive", { fg = tab_sel.fg, bg = active_bg, bold = true })
-  vim.api.nvim_set_hl(0, "WinBarInactive", { fg = tab_sel.bg, bg = tab_sel.fg })
+  local hl = vim.api.nvim_get_hl(0, { name = "TabLineSel", link = false })
+  vim.api.nvim_set_hl(0, "WinBar", {})
+  vim.api.nvim_set_hl(0, "WinBarNC", {})
+  vim.api.nvim_set_hl(0, "WinBarActive", { fg = hl.fg, bg = hl.bg or hl.fg, bold = true, })
+  vim.api.nvim_set_hl(0, "WinBarInactive", { fg = hl.bg, bg = hl.fg, })
 end
 setup_highlights()
 vim.api.nvim_create_autocmd("ColorScheme", { callback = setup_highlights })
 
-_G.goto_buf = function(buf) vim.api.nvim_set_current_buf(buf) end
+_G.goto_buf = vim.api.nvim_set_current_buf
 
 local function get_valid_bufs()
   return vim.iter(vim.api.nvim_list_bufs()):filter(function(b)
@@ -28,8 +27,7 @@ function _G.winbar_buffers()
   local parts = vim.iter(valid):map(function(b)
     local path = vim.api.nvim_buf_get_name(b)
     local name = path == "" and "Untitled" or vim.fs.basename(path)
-    local ft = vim.bo[b].filetype ~= "" and vim.bo[b].filetype or vim.filetype.match({ filename = name }) or
-        name:match("%.([^.]+)$")
+    local ft = vim.bo[b].filetype
     local icon = icons.get_icon(ft)
     local hl = (b == cur) and "WinBarActive" or "WinBarInactive"
     local mod = vim.bo[b].modified and " 󱇬" or ""
@@ -83,7 +81,7 @@ vim.api.nvim_create_autocmd("TermOpen", {
 })
 
 vim.api.nvim_create_autocmd(
-  { "BufAdd", "BufDelete", "BufWipeout", "BufUnload", "BufEnter", "BufModifiedSet", "WinEnter", "BufWinEnter" },
+  { "BufAdd", "BufDelete", "BufEnter", "BufModifiedSet", "WinEnter", },
   { callback = update }
 )
 update()
