@@ -39,7 +39,7 @@ require("bare.fzf")
 | `bare.pairs` | Automatic bracket and quote pairing with smart backspace and deletion. |
 | `bare.picker` | Wildmenu command line autocomplete and buffer switcher. |
 | `bare.present` | Presentation mode with dimmed non-focused code blocks. |
-| `ftplugin` | Buffer-local preview for Typst, Markdown, and HTML documents (`after/ftplugin/`). |
+| `bare.preview` | Buffer-local preview for Typst, Markdown, and HTML documents (`after/ftplugin/`). |
 | `bare.status` | Ultra-clean minimal status line. |
 | `bare.surround` | Add, change, and delete surrounding pairs (`()`, `{}`, `[]`, `""`, `''`, ` `` `). |
 | `bare.theme` | Catppuccin-Frappé inspired minimal theme for Neovim. |
