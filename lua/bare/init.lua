@@ -10,7 +10,6 @@ vim.schedule(function()
   require("bare.status")
   require("bare.git").setup()
   require("bare.pairs").setup()
-  require("bare.preview").setup()
   require("bare.cmp")
 
   require("bare.fzf").setup()

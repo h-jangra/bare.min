@@ -26,6 +26,7 @@ opt.incsearch = true
 opt.autoread = true
 opt.backup = false
 opt.swapfile = false
+opt.backupcopy = "yes"
 opt.undodir = vim.fs.joinpath(vim.fn.stdpath("data"), "undodir")
 opt.undofile = true
 opt.clipboard = "unnamedplus"
