@@ -77,9 +77,10 @@ vim.api.nvim_create_autocmd("FileType", {
 vim.api.nvim_create_autocmd("VimEnter", {
   callback = function()
     if vim.fn.argc() == 1 and vim.fn.isdirectory(vim.fn.argv(0)) == 1 then
+      local dir = vim.fn.argv(0)
       vim.cmd("enew")
       vim.cmd("bdelete #")
-      require("bare.filetree").toggle()
+      require("bare.filetree").open(dir)
     end
   end,
 })

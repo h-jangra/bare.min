@@ -110,8 +110,9 @@ local function read_dir(path, cache)
   local items, ok, dir = {}, pcall(vim.fs.dir, path)
   if ok and dir then
     for name, type in dir do
-      if state.show_hidden or name:sub(1, 1) ~= "." then
-        items[#items + 1] = { name = name, path = vim.fs.joinpath(path, name), is_dir = (type == "directory") }
+      local item_path = vim.fs.joinpath(path, name)
+      if state.show_hidden or name:sub(1, 1) ~= "." or state.expanded[item_path] then
+        items[#items + 1] = { name = name, path = item_path, is_dir = (type == "directory") }
       end
     end
     table.sort(items, function(a, b)
@@ -597,10 +598,17 @@ local function setup_buffer()
   end
 end
 
-function M.open()
-  if win() then return vim.api.nvim_set_current_win(state.win) end
+function M.open(dir)
+  if dir and dir ~= "" then
+    state.root = vim.fs.normalize(vim.fn.fnamemodify(dir, ":p"))
+  else
+    state.root = root()
+  end
+  if win() then
+    render(true)
+    return vim.api.nvim_set_current_win(state.win)
+  end
   if not buf() then setup_buffer() end
-  state.root = root()
   vim.cmd("topleft " .. state.width .. "vsplit")
   state.win = vim.api.nvim_get_current_win()
   vim.api.nvim_win_set_buf(state.win, state.buf)
@@ -618,16 +626,23 @@ function M.close()
   end
 end
 
-function M.toggle()
-  if win() then
+function M.toggle(dir)
+  if dir and dir ~= "" then
+    local target = vim.fs.normalize(vim.fn.fnamemodify(dir, ":p"))
+    if win() and state.root == target then
+      M.close()
+    else
+      M.open(dir)
+    end
+  elseif win() then
     M.close()
   else
     M.reveal()
   end
 end
 
-function M.reveal()
-  local current_buf = vim.api.nvim_buf_get_name(0)
+function M.reveal(target)
+  local current_buf = target or vim.api.nvim_buf_get_name(0)
   if current_buf:find("FileTree") then return end
   if not win() then M.open() end
   if current_buf == "" then return end
@@ -680,8 +695,9 @@ function M.setup()
       end
     end,
   })
-  vim.api.nvim_create_user_command("FileTree", function() M.toggle() end, {})
-  vim.api.nvim_create_user_command("FileTreeFind", function() M.reveal() end, {})
+  vim.api.nvim_create_user_command("FileTreeFind", function(opts)
+    M.reveal(opts.args ~= "" and opts.args or nil)
+  end, { nargs = "?", complete = "file" })
   vim.api.nvim_create_user_command("FileTreeClose", function() M.close() end, {})
 end
 
