@@ -1,6 +1,8 @@
 local M = {}
 
 function M.setup(opts)
+  if type(opts) == "function" then opts = { start = opts } end
+  opts = opts or {}
   local job
 
   local function stop()
@@ -14,7 +16,7 @@ function M.setup(opts)
 
   vim.api.nvim_buf_create_user_command(0, "Preview", function(args)
     stop()
-    job = opts.start(args)
+    if opts.start then job = opts.start(args) end
   end, { nargs = "?" })
 
   vim.api.nvim_buf_create_user_command(0, "PreviewStop", stop, {})
