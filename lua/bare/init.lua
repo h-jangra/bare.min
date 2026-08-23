@@ -1,6 +1,7 @@
 require("vim._core.ui2").enable({})
 require("bare.theme").setup()
 require("bare.options")
+require("bare.autocmd")
 require("bare.keymaps")
 require("bare.notify").setup()
 require("bare.netrw")
