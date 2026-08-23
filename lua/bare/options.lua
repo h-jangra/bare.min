@@ -29,7 +29,6 @@ opt.swapfile = false
 opt.backupcopy = "yes"
 opt.undodir = vim.fs.joinpath(vim.fn.stdpath("data"), "undodir")
 opt.undofile = true
-opt.clipboard = "unnamedplus"
 
 opt.mousescroll = "ver:5,hor:0"
 opt.synmaxcol = 240
@@ -38,12 +37,4 @@ opt.ttimeoutlen = 10
 opt.updatetime = 200
 opt.winheight = 1
 
-
 vim.opt.shadafile = ""
-
--- Highlight on yank
-vim.api.nvim_create_autocmd("TextYankPost", {
-  callback = function()
-    vim.hl.on_yank({ higroup = "Visual", timeout = 150 })
-  end,
-})

@@ -4,7 +4,7 @@ local opts = { noremap = true, silent = true }
 map("n", "<Esc>", "<cmd>nohlsearch<cr>", opts)
 map("n", "<C-s>", "<cmd>silent write<cr>", opts)
 map("n", "<leader>o", "<cmd>silent update<cr>:source %<cr>", { desc = "Save & Reload" })
-map("n", "<A-q>", "<cmd>q<cr>", opts)
+map("n", "<A-q>", "<cmd>qall!<cr>", opts)
 map("n", "<leader>a", "ggVG", { desc = "Select All" })
 map("v", "<leader>=", ":'<,'>!column -t<CR>")
 map("v", "<leader>s", ":'<,'>sort<CR>")
