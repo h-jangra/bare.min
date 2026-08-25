@@ -42,8 +42,14 @@ set_hl()
 
 local function update_git_branch(buf)
   buf = (buf and buf ~= 0) and buf or api.nvim_get_current_buf()
+  if vim.bo[buf].buftype ~= "" then
+    vim.b[buf].git_branch = ""
+    return
+  end
   local file = api.nvim_buf_get_name(buf)
-  local root = fs.root(file ~= "" and fs.dirname(file) or fn.getcwd(), ".git")
+  local dir = file ~= "" and fs.dirname(file) or ""
+  if dir == "" then dir = fn.getcwd() end
+  local root = fs.root(dir, ".git")
   if not root then
     vim.b[buf].git_branch = ""
     return

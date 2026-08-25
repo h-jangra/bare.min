@@ -16,6 +16,7 @@ local icons = {
 	gosum = { "󰕳", "#51a0cf" },
 	gzip = { "", "#eca517" },
 	html = { "", "#e34c26" },
+	hyprlang = { "", "#00A4EF" },
 	java = { "", "#e11f21" },
 	javascript = { "", "#f7df1e" },
 	javascriptreact = { "", "#61dafb" },
