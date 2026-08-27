@@ -14,6 +14,7 @@ vim.schedule(function()
   require("bare.cmp")
 
   require("bare.fzf").setup()
+  require("bare.files").setup()
   require("bare.marks").setup()
   require("bare.surround").setup()
   require("bare.diagnostics").setup()

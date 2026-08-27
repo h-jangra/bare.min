@@ -180,7 +180,8 @@ end
 
 local function refresh_git(cb)
   local r = root()
-  if not vim.fs.root(r, ".git") then
+  local ok, git_root = pcall(vim.fs.root, r, ".git")
+  if not ok or not git_root then
     state.git = {}
     if cb then cb() end
     return

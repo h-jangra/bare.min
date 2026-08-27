@@ -819,6 +819,7 @@ function M.close()
 end
 
 function M.toggle(dir)
+  if type(dir) ~= "string" then dir = nil end
   if valid_win(state.win) then
     M.close()
   else
@@ -878,6 +879,7 @@ function M.setup(opts)
   })
 
   api.nvim_create_autocmd("ColorScheme", { group = grp, callback = setup_hl })
+  vim.api.nvim_create_user_command("Files", require("bare.files").toggle, {})
 end
 
 return M

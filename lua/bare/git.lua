@@ -38,9 +38,12 @@ local function get_info(buf)
 	if file == "" or vim.bo[buf].buftype ~= "" then
 		return nil
 	end
-	local root = vim.fs.root(file, ".git")
-	local rel = root and vim.fs.relpath(root, file)
-	if not root or not rel then
+	local ok, root = pcall(vim.fs.root, file, ".git")
+	if not ok or not root then
+		return nil
+	end
+	local rel = vim.fs.relpath(root, file)
+	if not rel then
 		return nil
 	end
 	return { buf = buf, file = file, root = root, rel = rel }
@@ -92,8 +95,8 @@ end
 
 function M.status(dir)
 	dir = dir and vim.fs.normalize(dir) or vim.fn.getcwd()
-	local root = vim.fs.root(dir, ".git")
-	if not root then
+	local ok, root = pcall(vim.fs.root, dir, ".git")
+	if not ok or not root then
 		return {}
 	end
 
@@ -106,8 +109,8 @@ end
 
 function M.status_async(dir, cb)
 	dir = dir and vim.fs.normalize(dir) or vim.fn.getcwd()
-	local root = vim.fs.root(dir, ".git")
-	if not root then
+	local ok, root = pcall(vim.fs.root, dir, ".git")
+	if not ok or not root then
 		if cb then
 			cb({})
 		end
